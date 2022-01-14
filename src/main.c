@@ -185,13 +185,15 @@ int main(int argc, char *argv[])
 
     printf("server: waiting for connections...\n");
 
-    sds recv_msg = sdsnewlen("", MAX_BUFFER_SIZE);
-    sds buffer = sdsnewlen("", MAX_BUFFER_SIZE);
-    int ptr = 0;
-    bool flag = false;
     while (true)
     {
         client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &sin_size);
+
+        sds recv_msg = sdsnewlen("", MAX_BUFFER_SIZE);
+        sds buffer = sdsnewlen("", MAX_BUFFER_SIZE);
+        int ptr = 0;
+        bool flag = false;
+
         while (true)
         {
             int len = recv(client_fd, &recv_msg, MAX_BUFFER_SIZE, 0);
@@ -203,9 +205,6 @@ int main(int argc, char *argv[])
             for (int i = 0; i < len; i++)
             {
                 char c = recv_msg[i];
-                if (c == '\r') {
-                    flag = true;
-                }
                 if (c == '\n' && flag) {
                     sds command = sdsempty();
                     command = sdscpylen(command, buffer, ptr-1);
@@ -215,7 +214,7 @@ int main(int argc, char *argv[])
                     continue;
                 }
                 buffer[ptr++] = c;
-                flag = false;
+                flag = c == '\r';
             }
         }
     }
@@ -224,5 +223,7 @@ int main(int argc, char *argv[])
 }
 
 void process_command(sds command) {
-
+    // split
+    // switch: dispatch table
+    // 
 }

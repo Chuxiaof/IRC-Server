@@ -49,10 +49,12 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
-#include "log.h"
 
+#include "log.h"
+#include "../lib/sds/sds.h"
 
 #define BACKLOG 20
+#define MAX_BUFFER_SIZE 512
 
 int main(int argc, char *argv[])
 {
@@ -108,7 +110,7 @@ int main(int argc, char *argv[])
     }
 
     /* Set logging level based on verbosity */
-    switch(verbosity)
+    switch (verbosity)
     {
     case -1:
         chirc_setloglevel(QUIET);
@@ -129,34 +131,39 @@ int main(int argc, char *argv[])
 
     /* Your code goes here */
     char *msg = ":bar.example.com 001 user1 :Welcome to the Internet Relay Network user1!user1@foo.example.com\r\n";
-    
-    int server_fd, connected_fd;
+
+    int server_fd, client_fd;
 
     struct addrinfo hints, *res, *p;
-    memset(&hints, 0,sizeof(struct addrinfo));
-    hints.ai_family=AF_INET;
-    hints.ai_socktype=SOCK_STREAM;
-    hints.ai_flags=AI_PASSIVE;
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
 
     struct sockaddr_in client_addr;
-    socklen_t sin_size =sizeof(struct sockaddr_in);
-    
-    int rv,yes=1;
-    if((rv = getaddrinfo(NULL,port,&hints,&res))!=0){
-        fprintf(stderr,"getaddrinfo: %s\n",gai_strerror(rv));
+    socklen_t sin_size = sizeof(struct sockaddr_in);
+
+    int rv, yes = 1;
+    if ((rv = getaddrinfo(NULL, port, &hints, &res)) != 0)
+    {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
         return 1;
     }
-    
-    for(p=res;p!=NULL;p=p->ai_next){
-        if((server_fd=socket(p->ai_family,p->ai_socktype,p->ai_protocol))==-1){
+
+    for (p = res; p != NULL; p = p->ai_next)
+    {
+        if ((server_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+        {
             perror("server: socket");
             continue;
         }
-        if(setsockopt(server_fd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int))==-1){
+        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
+        {
             perror("setsockopt");
             exit(1);
         }
-        if(bind(server_fd,p->ai_addr,p->ai_addrlen)==-1){
+        if (bind(server_fd, p->ai_addr, p->ai_addrlen) == -1)
+        {
             close(server_fd);
             perror("server: bind");
             continue;
@@ -165,22 +172,57 @@ int main(int argc, char *argv[])
     }
 
     freeaddrinfo(res);
-    if(p==NULL){
+    if (p == NULL)
+    {
         fprintf(stderr, "server: failed to bind\n");
         exit(1);
     }
-    if(listen(server_fd,BACKLOG)==-1){
+    if (listen(server_fd, BACKLOG) == -1)
+    {
         perror("listen");
         exit(1);
     }
 
     printf("server: waiting for connections...\n");
 
-    while(true){
-        connected_fd = accept(server_fd,(struct sockaddr *)&client_addr, &sin_size);
-        send(connected_fd,msg,strlen(msg),0);
+    sds recv_msg = sdsnewlen("", MAX_BUFFER_SIZE);
+    sds buffer = sdsnewlen("", MAX_BUFFER_SIZE);
+    int ptr = 0;
+    bool flag = false;
+    while (true)
+    {
+        client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &sin_size);
+        while (true)
+        {
+            int len = recv(client_fd, &recv_msg, MAX_BUFFER_SIZE, 0);
+            if (len == -1) {
+                // log
+                close(client_fd);
+                break;
+            }
+            for (int i = 0; i < len; i++)
+            {
+                char c = recv_msg[i];
+                if (c == '\r') {
+                    flag = true;
+                }
+                if (c == '\n' && flag) {
+                    sds command = sdsempty();
+                    command = sdscpylen(command, buffer, ptr-1);
+                    process_command(command);
+                    flag = false;
+                    ptr = 0;
+                    continue;
+                }
+                buffer[ptr++] = c;
+                flag = false;
+            }
+        }
     }
-    
+
     return 0;
 }
 
+void process_command(sds command) {
+
+}

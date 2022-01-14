@@ -43,9 +43,16 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <stdbool.h>
 #include "log.h"
 
+
+#define BACKLOG 20
 
 int main(int argc, char *argv[])
 {
@@ -121,7 +128,59 @@ int main(int argc, char *argv[])
     }
 
     /* Your code goes here */
+    char *msg = ":bar.example.com 001 user1 :Welcome to the Internet Relay Network user1!user1@foo.example.com\r\n";
+    
+    int server_fd, connected_fd;
 
+    struct addrinfo hints, *res, *p;
+    memset(&hints, 0,sizeof(struct addrinfo));
+    hints.ai_family=AF_INET;
+    hints.ai_socktype=SOCK_STREAM;
+    hints.ai_flags=AI_PASSIVE;
+
+    struct sockaddr_in client_addr;
+    socklen_t sin_size =sizeof(struct sockaddr_in);
+    
+    int rv,yes=1;
+    if((rv = getaddrinfo(NULL,port,&hints,&res))!=0){
+        fprintf(stderr,"getaddrinfo: %s\n",gai_strerror(rv));
+        return 1;
+    }
+    
+    for(p=res;p!=NULL;p=p->ai_next){
+        if((server_fd=socket(p->ai_family,p->ai_socktype,p->ai_protocol))==-1){
+            perror("server: socket");
+            continue;
+        }
+        if(setsockopt(server_fd,SOL_SOCKET,SO_REUSEADDR,&yes,sizeof(int))==-1){
+            perror("setsockopt");
+            exit(1);
+        }
+        if(bind(server_fd,p->ai_addr,p->ai_addrlen)==-1){
+            close(server_fd);
+            perror("server: bind");
+            continue;
+        }
+        break;
+    }
+
+    freeaddrinfo(res);
+    if(p==NULL){
+        fprintf(stderr, "server: failed to bind\n");
+        exit(1);
+    }
+    if(listen(server_fd,BACKLOG)==-1){
+        perror("listen");
+        exit(1);
+    }
+
+    printf("server: waiting for connections...\n");
+
+    while(true){
+        connected_fd = accept(server_fd,(struct sockaddr *)&client_addr, &sin_size);
+        send(connected_fd,msg,strlen(msg),0);
+    }
+    
     return 0;
 }
 

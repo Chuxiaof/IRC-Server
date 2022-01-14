@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
         sds buffer = sdsnewlen("", MAX_BUFFER_SIZE);
         int ptr = 0;
         bool flag = false;
-
+        char * nick =malloc(sizeof(char)*50);
         while (true)
         {
             int len = recv(client_fd, &recv_msg, MAX_BUFFER_SIZE, 0);
@@ -208,7 +208,7 @@ int main(int argc, char *argv[])
                 if (c == '\n' && flag) {
                     sds command = sdsempty();
                     command = sdscpylen(command, buffer, ptr-1);
-                    process_command(command);
+                    process_command(command, nick,client_fd);
                     flag = false;
                     ptr = 0;
                     continue;
@@ -222,8 +222,20 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void process_command(sds command) {
+void process_command(sds command, char * nick, int sock_fd){
+    int count;
+    sds * tokens = sdssplitlen(command,sdslen(command)," ",1,&count);
+    if(strcmp(tokens[0],"NICK")==0){
+        strcpy(nick,tokens[1]);
+    }else{
+        char hostname[100];
+        gethostname(hostname,100);
+        char msg[1024];
+        sprintf(msg,":%s 001 %s :Welcome to the Internet Relay Network %s!%s@foo.example.com",hostname,nick,nick,tokens[1]);
+        send(sock_fd,msg,strlen(msg),0);
+    }
+}
     // split
     // switch: dispatch table
     // 
-}
+

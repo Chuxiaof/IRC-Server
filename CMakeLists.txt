@@ -6,7 +6,7 @@ set(CMAKE_BUILD_TYPE Debug)
 
 include_directories(src
     # External libraries: Add lib/ directories here
-    lib
+    lib/uthash
     lib/sds)
 
 add_executable(chirc
@@ -14,6 +14,7 @@ add_executable(chirc
     src/log.c
     src/command.c 
     src/connect.c
+    src/handler.c
     lib/sds/sds.c)
 
 target_link_libraries(chirc pthread)

@@ -6,6 +6,7 @@ set(CMAKE_BUILD_TYPE Debug)
 
 include_directories(src
     # External libraries: Add lib/ directories here
+    lib
     lib/sds)
 
 add_executable(chirc

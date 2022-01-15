@@ -5,6 +5,6 @@
 
 #include "connect.h"
 
-void process_cmd(sds command, connect_info_handle cinfo);
+void process_cmd(sds command, connect_info_handle cinfo, connect_info_handle connections);
 
 #endif

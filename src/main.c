@@ -51,7 +51,7 @@
 #include <stdbool.h>
 
 #include <sds.h>
-
+#include <uthash.h>
 #include "log.h"
 #include "connect.h"
 #include "command.h"
@@ -136,6 +136,8 @@ int main(int argc, char *argv[])
     /* Your code goes here */
 
     int server_fd, client_fd;
+
+    struct connect_info * connections=NULL; //create the pointer to hash table
 
     struct addrinfo hints, *res, *p;
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -232,7 +234,7 @@ int main(int argc, char *argv[])
                 {
                     sds command = sdsempty();
                     command = sdscpylen(command, buffer, ptr - 1);
-                    process_cmd(command, cinfo);
+                    process_cmd(command, cinfo, connections); //connection: pointer to hash table
                     flag = false;
                     ptr = 0;
                     continue;

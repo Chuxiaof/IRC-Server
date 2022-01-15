@@ -57,19 +57,20 @@
 #define MAX_BUFFER_SIZE 512
 
 
-void process_command(sds command, char * nick, int client_fd, char * server, char * client) 
+void process_command(sds command, char * nick, char * server, char * client, int client_fd) 
 {
     chilog(INFO, "command: %s", command);
 
     int count;
     sds *tokens = sdssplitlen(command, sdslen(command), " ", 1, &count);
 
-    if (strcmp(tokens[0], "NICK") == 0)
-        nick = sdscpy(nick, tokens[1]);
+    if (strcmp(tokens[0], "NICK") == 0) {
+        strcpy(nick, tokens[1]);
+    }
     else
     {
         char msg[1024];
-        sprintf(msg, ":%s 001 %s :Welcome to the Internet Relay Network %s!%s@%s", 
+        sprintf(msg, ":%s 001 %s :Welcome to the Internet Relay Network %s!%s@%s\r\n", 
                         server, nick, nick, tokens[1], client);
         send(client_fd, msg, strlen(msg), 0);
     }
@@ -209,15 +210,13 @@ int main(int argc, char *argv[])
 
     while (true)
     {
-        client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &sin_size);
-
         char host_client[1024];
         getnameinfo((struct sockaddr *)&client_addr, sizeof client_addr, host_client, sizeof host_client,
                          NULL, 0, 0);
         chilog(INFO, "host of client: %s", host_client);
-        
-        // sds recv_msg = sdsnewlen("", MAX_BUFFER_SIZE);
-        // sds buffer = sdsnewlen("", MAX_BUFFER_SIZE);
+
+        client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &sin_size);
+
         char recv_msg[MAX_BUFFER_SIZE];
         char buffer[MAX_BUFFER_SIZE];
         int ptr = 0;
@@ -240,10 +239,9 @@ int main(int argc, char *argv[])
                 char c = recv_msg[i];
                 if (c == '\n' && flag)
                 {
-                    sds command = sdsnew(buffer);
-                    sdsrange(command, 0, ptr - 1);
-                    process_command(command, nick, client_fd, host_server, host_client);
-                    sds_free(command);
+                    sds command = sdsempty();
+                    command = sdscpylen(command, buffer, ptr - 1);
+                    process_command(command, nick, host_server, host_client, client_fd);
                     flag = false;
                     ptr = 0;
                     continue;
@@ -253,6 +251,8 @@ int main(int argc, char *argv[])
             }
         }
     }
+
+    close(server_fd);
 
     return 0;
 }

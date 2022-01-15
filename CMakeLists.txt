@@ -5,14 +5,13 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_BUILD_TYPE Debug)
 
 include_directories(src
-
     # External libraries: Add lib/ directories here
     lib/sds)
 
 add_executable(chirc
     src/main.c
     src/log.c
-    src/commands.c)
+    lib/sds/sds.c)
 
 target_link_libraries(chirc pthread)
 

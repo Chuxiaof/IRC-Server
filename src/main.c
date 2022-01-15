@@ -49,12 +49,31 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
+#include <sds.h>
 
 #include "log.h"
-#include "../lib/sds/sds.h"
 
 #define BACKLOG 20
 #define MAX_BUFFER_SIZE 512
+
+
+void process_command(sds command, char * nick, int client_fd, char * server, char * client) 
+{
+    chilog(INFO, "command: %s", command);
+
+    int count;
+    sds *tokens = sdssplitlen(command, sdslen(command), " ", 1, &count);
+
+    if (strcmp(tokens[0], "NICK") == 0)
+        nick = sdscpy(nick, tokens[1]);
+    else
+    {
+        char msg[1024];
+        sprintf(msg, ":%s 001 %s :Welcome to the Internet Relay Network %s!%s@%s", 
+                        server, nick, nick, tokens[1], client);
+        send(client_fd, msg, strlen(msg), 0);
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -130,7 +149,6 @@ int main(int argc, char *argv[])
     }
 
     /* Your code goes here */
-    char *msg = ":bar.example.com 001 user1 :Welcome to the Internet Relay Network user1!user1@foo.example.com\r\n";
 
     int server_fd, client_fd;
 
@@ -146,26 +164,26 @@ int main(int argc, char *argv[])
     int rv, yes = 1;
     if ((rv = getaddrinfo(NULL, port, &hints, &res)) != 0)
     {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
-        return 1;
+        chilog(CRITICAL, "getaddrinfo: %s\n", gai_strerror(rv));
+        exit(1);
     }
 
     for (p = res; p != NULL; p = p->ai_next)
     {
         if ((server_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
         {
-            perror("server: socket");
+            chilog(WARNING, "server: socket error");
             continue;
         }
         if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
         {
-            perror("setsockopt");
+            chilog(CRITICAL, "setsockopt error");
             exit(1);
         }
         if (bind(server_fd, p->ai_addr, p->ai_addrlen) == -1)
         {
             close(server_fd);
-            perror("server: bind");
+            chilog(WARNING, "server: bind error");
             continue;
         }
         break;
@@ -174,41 +192,58 @@ int main(int argc, char *argv[])
     freeaddrinfo(res);
     if (p == NULL)
     {
-        fprintf(stderr, "server: failed to bind\n");
+        chilog(CRITICAL, "server: failed to bind");
         exit(1);
     }
     if (listen(server_fd, BACKLOG) == -1)
     {
-        perror("listen");
+        chilog(CRITICAL, "listen error");
         exit(1);
     }
 
-    printf("server: waiting for connections...\n");
+    char host_server[1024];
+    gethostname(host_server, sizeof host_server);
+    chilog(INFO, "host of server: %s", host_server);
+
+    chilog(INFO, "server: waiting for connections...");
 
     while (true)
     {
         client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &sin_size);
 
-        sds recv_msg = sdsnewlen("", MAX_BUFFER_SIZE);
-        sds buffer = sdsnewlen("", MAX_BUFFER_SIZE);
+        char host_client[1024];
+        getnameinfo((struct sockaddr *)&client_addr, sizeof client_addr, host_client, sizeof host_client,
+                         NULL, 0, 0);
+        chilog(INFO, "host of client: %s", host_client);
+        
+        // sds recv_msg = sdsnewlen("", MAX_BUFFER_SIZE);
+        // sds buffer = sdsnewlen("", MAX_BUFFER_SIZE);
+        char recv_msg[MAX_BUFFER_SIZE];
+        char buffer[MAX_BUFFER_SIZE];
         int ptr = 0;
         bool flag = false;
-        char * nick =malloc(sizeof(char)*50);
+
+        char nick[1024];
+
         while (true)
         {
             int len = recv(client_fd, &recv_msg, MAX_BUFFER_SIZE, 0);
-            if (len == -1) {
-                // log
+            chilog(DEBUG, "recv_msg: %s", recv_msg);
+            if (len == -1)
+            {
+                chilog(ERROR, "recv from %d fail", client_fd);
                 close(client_fd);
                 break;
             }
             for (int i = 0; i < len; i++)
             {
                 char c = recv_msg[i];
-                if (c == '\n' && flag) {
-                    sds command = sdsempty();
-                    command = sdscpylen(command, buffer, ptr-1);
-                    process_command(command, nick,client_fd);
+                if (c == '\n' && flag)
+                {
+                    sds command = sdsnew(buffer);
+                    sdsrange(command, 0, ptr - 1);
+                    process_command(command, nick, client_fd, host_server, host_client);
+                    sds_free(command);
                     flag = false;
                     ptr = 0;
                     continue;
@@ -222,20 +257,4 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-void process_command(sds command, char * nick, int sock_fd){
-    int count;
-    sds * tokens = sdssplitlen(command,sdslen(command)," ",1,&count);
-    if(strcmp(tokens[0],"NICK")==0){
-        strcpy(nick,tokens[1]);
-    }else{
-        char hostname[100];
-        gethostname(hostname,100);
-        char msg[1024];
-        sprintf(msg,":%s 001 %s :Welcome to the Internet Relay Network %s!%s@foo.example.com",hostname,nick,nick,tokens[1]);
-        send(sock_fd,msg,strlen(msg),0);
-    }
-}
-    // split
-    // switch: dispatch table
-    // 
 

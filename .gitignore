@@ -14,3 +14,4 @@ build/
 cmake-build*
 .idea
 .DS_Store
+.vscode/

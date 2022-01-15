@@ -1,6 +1,7 @@
 #include "connect.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <string.h>
 
@@ -18,4 +19,8 @@ void send_welcome(connect_info_handle cinfo)
         chilog(INFO, "send welcome message to %s@%s", cinfo->nick, cinfo->host_client);
         cinfo->registered = true;
     }
+}
+
+void destroy_cinfo(connect_info_handle cinfo) {
+    free(cinfo);
 }

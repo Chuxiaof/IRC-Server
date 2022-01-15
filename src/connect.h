@@ -20,4 +20,6 @@ typedef connect_info * connect_info_handle;
 
 void send_welcome(connect_info_handle cinfo);
 
+void destroy_cinfo(connect_info_handle cinfo);
+
 #endif

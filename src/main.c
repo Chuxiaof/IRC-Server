@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
     {
         client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &sin_size);
 
-        connect_info_handle cinfo;
+        connect_info_handle cinfo = (connect_info_handle) malloc(sizeof(connect_info));
         cinfo->server_fd = server_fd;
         cinfo->host_server = host_server;
         cinfo->client_fd = client_fd;
@@ -241,6 +241,8 @@ int main(int argc, char *argv[])
                 flag = c == '\r';
             }
         }
+
+        destroy_cinfo(cinfo);
     }
 
     close(server_fd);

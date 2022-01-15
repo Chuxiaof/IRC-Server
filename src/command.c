@@ -1,5 +1,7 @@
 #include "command.h"
 
+#include <string.h>
+
 #include "log.h"
 
 void process_cmd(sds command, connect_info_handle cinfo) {

@@ -59,7 +59,6 @@
 #define BACKLOG 5
 #define MAX_BUFFER_SIZE 512
 
-
 int main(int argc, char *argv[])
 {
     int opt;
@@ -137,7 +136,7 @@ int main(int argc, char *argv[])
 
     int server_fd, client_fd;
 
-    struct connect_info * connections=NULL; //create the pointer to hash table
+    struct connect_info *connections = NULL; // create the pointer to hash table
 
     struct addrinfo hints, *res, *p;
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -198,8 +197,8 @@ int main(int argc, char *argv[])
     {
         client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &sin_size);
 
-        connect_info_handle cinfo = (connect_info_handle) malloc(sizeof(connect_info));
-        cinfo->server_fd = server_fd;
+        connect_info_handle cinfo = (connect_info_handle)malloc(sizeof(connect_info));
+        init_cinfo(cinfo);
         cinfo->host_server = host_server;
         cinfo->client_fd = client_fd;
 
@@ -209,9 +208,6 @@ int main(int argc, char *argv[])
         chilog(INFO, "host of client: %s", host_client);
 
         cinfo->host_client = host_client;
-        cinfo->nick = NULL;
-        cinfo->user = NULL;
-        cinfo->registered = false;
 
         char recv_msg[MAX_BUFFER_SIZE];
         char buffer[MAX_BUFFER_SIZE];
@@ -234,7 +230,8 @@ int main(int argc, char *argv[])
                 {
                     sds command = sdsempty();
                     command = sdscpylen(command, buffer, ptr - 1);
-                    process_cmd(command, cinfo, connections); //connection: pointer to hash table
+                    process_cmd(command, cinfo, connections);
+                    // connections: pointer to hash table
                     flag = false;
                     ptr = 0;
                     continue;

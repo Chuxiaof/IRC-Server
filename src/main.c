@@ -49,32 +49,16 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
+
 #include <sds.h>
 
 #include "log.h"
+#include "connect.h"
+#include "command.h"
 
-#define BACKLOG 20
+#define BACKLOG 5
 #define MAX_BUFFER_SIZE 512
 
-
-void process_command(sds command, char * nick, char * server, char * client, int client_fd) 
-{
-    chilog(INFO, "command: %s", command);
-
-    int count;
-    sds *tokens = sdssplitlen(command, sdslen(command), " ", 1, &count);
-
-    if (strcmp(tokens[0], "NICK") == 0) {
-        strcpy(nick, tokens[1]);
-    }
-    else
-    {
-        char msg[1024];
-        sprintf(msg, ":%s 001 %s :Welcome to the Internet Relay Network %s!%s@%s\r\n", 
-                        server, nick, nick, tokens[1], client);
-        send(client_fd, msg, strlen(msg), 0);
-    }
-}
 
 int main(int argc, char *argv[])
 {
@@ -210,19 +194,27 @@ int main(int argc, char *argv[])
 
     while (true)
     {
+        client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &sin_size);
+
+        connect_info_handle cinfo;
+        cinfo->server_fd = server_fd;
+        cinfo->host_server = host_server;
+        cinfo->client_fd = client_fd;
+
         char host_client[1024];
         getnameinfo((struct sockaddr *)&client_addr, sizeof client_addr, host_client, sizeof host_client,
-                         NULL, 0, 0);
+                    NULL, 0, 0);
         chilog(INFO, "host of client: %s", host_client);
 
-        client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &sin_size);
+        cinfo->host_client = host_client;
+        cinfo->nick = NULL;
+        cinfo->user = NULL;
+        cinfo->registered = false;
 
         char recv_msg[MAX_BUFFER_SIZE];
         char buffer[MAX_BUFFER_SIZE];
         int ptr = 0;
         bool flag = false;
-
-        char nick[1024];
 
         while (true)
         {
@@ -231,8 +223,7 @@ int main(int argc, char *argv[])
             if (len == -1)
             {
                 chilog(ERROR, "recv from %d fail", client_fd);
-                close(client_fd);
-                break;
+                continue;
             }
             for (int i = 0; i < len; i++)
             {
@@ -241,7 +232,7 @@ int main(int argc, char *argv[])
                 {
                     sds command = sdsempty();
                     command = sdscpylen(command, buffer, ptr - 1);
-                    process_command(command, nick, host_server, host_client, client_fd);
+                    process_cmd(command, cinfo);
                     flag = false;
                     ptr = 0;
                     continue;
@@ -256,5 +247,3 @@ int main(int argc, char *argv[])
 
     return 0;
 }
-
-

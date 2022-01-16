@@ -51,7 +51,7 @@
 #include <stdbool.h>
 
 #include <sds.h>
-#include <uthash.h>
+#include "uthash.h"
 #include "log.h"
 #include "connect.h"
 #include "command.h"

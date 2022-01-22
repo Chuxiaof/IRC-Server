@@ -5,39 +5,35 @@
 #include "log.h"
 #include "handler.h"
 
-typedef void (*command_func)(connect_info_handle cinfo, connect_info_handle connections, sds command);
+typedef void (*handler_func)(context_handle ctx, user_handle user_info, message_handle msg);
 
-struct command_entry
+struct handler_entry
 {
-    char *command_name;
-    command_func func;
+    char * command_name;
+    handler_func func;
 };
 
-struct command_entry command_entries[] = {
+static struct handler_entry handler_entries[] = {
     {"NICK", handler_NICK},
     {"USER", handler_USER},
 };
 
-int commands_num = sizeof(command_entries) / sizeof(struct command_entry);
+int handlers_num = sizeof(handler_entries) / sizeof(struct handler_entry);
 
-void process_cmd(sds command, connect_info_handle cinfo, connect_info_handle connections)
+void process_cmd(context_handle ctx, user_handle user_info, message_handle msg)
 {
-    chilog(INFO, "command: %s", command);
-
-    int count;
-    sds *tokens = sdssplitlen(command, sdslen(command), " ", 1, &count);
-
     int i;
-    for (i = 0; i < commands_num; i++)
+    for (i = 0; i < handlers_num; i++)
     {
-        if (!strcmp(tokens[0], command_entries[i].command_name))
+        if (!strcmp(msg->cmd, handler_entries[i].command_name))
         {
-            command_entries[i].func(cinfo, connections, command);
+            handler_entries[i].func(ctx, user_info, msg);
             break;
         }
     }
-    if (i == commands_num)
+    if (i == handlers_num)
     {
+        // TODO 
         chilog(WARNING, "unsupported command");
     }
 }

@@ -13,7 +13,7 @@ struct user
 
     // the socket of connection
     int client_fd;
-    char *client_host;
+    char *client_host_name;
     
     // makes this structure hashable
     UT_hash_handle hh; 
@@ -25,13 +25,11 @@ typedef user * user_handle;
 
 user_handle create_user();
 
-void delete_user(user_handle user);
+void destroy_user(user_handle user);
 
-void update_nick(context_handle ctx, user_handle user, char *nick);
+bool can_register(user_handle user);
 
-void update_username(context_handle ctx, user_handle user, char *username, char *fullname);
-
-// void send_welcome(user_handle user);
+void send_welcome(user_handle user, char *server_host_name);
 
 
 #endif

@@ -5,16 +5,14 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <sds.h>
+#include <stdbool.h>
 
-#include "context.h"
 #include "reply.h"
 #include "log.h"
 
-void register(context_handle ctx, user_handle user);
-
 user_handle create_user() {
     user_handle user = (user_handle) malloc(sizeof(user));
-    if (user == null) {
+    if (user == NULL) {
         chilog(ERROR, "fail to create user: no enough memory");
         return NULL;
     }
@@ -25,7 +23,7 @@ user_handle create_user() {
     return user;
 }
 
-void delete_user(context_handle ctx, user_handle user) {
+void destroy_user(user_handle user) {
     if (user != NULL) {
         // TODO
         // depend on the implementation of char *
@@ -34,28 +32,16 @@ void delete_user(context_handle ctx, user_handle user) {
     free(user);
 }
 
-void update_nick(context_handle ctx, user_handle user, char *nick) {
-    if (user == NULL) {
-        chilog(ERROR, "update_nick: user is null");
-        return;
-    }
-    if (nick == NULL || sdslen(nick) == 0) {
-        chilog(ERROR, "update_nick: nick is empty");
-        return;
-    }
-    user->nick = nick;
-
+bool can_register(user_handle user) {
+    return user->nick != NULL && user->username != NULL;
 }
 
-void update_username(context_handle ctx, user_handle user, char *username, char *fullname);
-
-void send_welcome(context_handle ctx, user_handle user) {
+void send_welcome(user_handle user, char *server_host_name) {
     char msg[512];
     sprintf(msg, ":%s %s %s :Welcome to the Internet Relay Network %s!%s@%s\r\n",
-            ctx->server_host, RPL_WELCOME, user->nick,
-            user->nick, user->username, user->client_host);
+            server_host_name, RPL_WELCOME, user->nick,
+            user->nick, user->username, user->client_host_name);
     send(user->client_fd, msg, strlen(msg), 0);
-    chilog(INFO, "send welcome message to %s@%s", user->nick, user->client_host);
+    chilog(INFO, "send welcome message to %s@%s", user->nick, user->client_host_name);
     user->registered = true;
 }
-

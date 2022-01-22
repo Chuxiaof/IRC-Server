@@ -12,9 +12,10 @@ include_directories(src
 add_executable(chirc
     src/main.c
     src/log.c
-    src/command.c 
-    src/connect.c
+    src/command.c
     src/handler.c
+    src/message.c
+    src/user.c
     lib/sds/sds.c)
 
 target_link_libraries(chirc pthread)

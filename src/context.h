@@ -1,3 +1,6 @@
+#ifndef CHANNEL_H
+#define CHANNEL_H
+
 #include "user.h"
 
 struct context{
@@ -10,3 +13,4 @@ typedef struct context context;
 
 typedef context * context_handle;
 
+#endif

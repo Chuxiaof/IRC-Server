@@ -1,10 +1,10 @@
 #ifndef COMMAND_H
 #define COMMAND_H
 
-#include <sds.h>
+#include "context.h"
+#include "user.h"
+#include "message.h"
 
-#include "connect.h"
-
-void process_cmd(sds command, connect_info_handle cinfo, connect_info_handle connections);
+void process_cmd(context_handle ctx, user_handle user_info, message_handle msg);
 
 #endif

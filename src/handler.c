@@ -1,37 +1,60 @@
 #include "handler.h"
 
 #include <sds.h>
+#include <stdbool.h>
 
-#include "connect.h"
+#include "user.h"
+#include "context.h"
+#include "message.h"
+#include "log.h"
 
-void handler_NICK(connect_info_handle cinfo, connect_info_handle connections, sds command)
-{
-    // TODO
-    // check whether current connection is already registered
-
-    int count;
-    sds *tokens = sdssplitlen(command, sdslen(command), " ", 1, &count);
-
-    cinfo->nick = sdsnew(tokens[1]);
-    if (cinfo->nick != NULL && cinfo->user != NULL)
-    {
-        send_welcome(cinfo);
-        HASH_ADD_KEYPTR(hh, connections, cinfo->nick, strlen(cinfo->nick), cinfo);
-    }
+bool check_param_number(int have, int target) {
+    return have >= target;
 }
 
-void handler_USER(connect_info_handle cinfo, connect_info_handle connections, sds command)
+void handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
 {
-    // TODO
-    // same above
-
-    int count;
-    sds *tokens = sdssplitlen(command, sdslen(command), " ", 1, &count);
-
-    cinfo->user = sdsnew(tokens[1]);
-    if (cinfo->nick != NULL && cinfo->user != NULL)
-    {
-        send_welcome(cinfo);
-        HASH_ADD_KEYPTR(hh, connections, cinfo->nick, strlen(cinfo->nick), cinfo);
+    if (!check_param_number(msg->nparams, 1)) {
+        chilog(ERROR, "handler_NICK: insufficient params");
+        // TODO: error handling
+        return;
     }
+
+    if (user_info->registered) {
+        // change nick
+    } else {
+        user_info->nick = msg->params[0];
+        if (can_register(user_info)) {
+            // add to ctx->user_table
+            user_info->registered = true;
+            // send welcome
+            send_welcome(user_info, ctx->server_host);
+        }
+    }
+
+    //     HASH_ADD_KEYPTR(hh, connections, cinfo->nick, strlen(cinfo->nick), cinfo);
+}
+
+void handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
+{
+    if (!check_param_number(msg->nparams, 4)) {
+        chilog(ERROR, "handler_USER: insufficient params");
+        return;
+        //TODO
+    }
+
+    if (user_info->registered) {
+        // error handling
+    } else {
+        user_info->username = msg->params[0];
+        user_info->fullname = msg->params[3];
+        if (can_register(user_info)) {
+            // add to ctx->user_table
+            user_info->registered = true;
+            // send welcome
+            send_welcome(user_info, ctx->server_host);
+        }
+    }
+
+    // HASH_ADD_KEYPTR(hh, connections, cinfo->nick, strlen(cinfo->nick), cinfo);
 }

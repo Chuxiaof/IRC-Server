@@ -49,18 +49,35 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
+#include <pthread.h>
+#include <signal.h>
 
 #include <sds.h>
 #include "uthash.h"
 #include "log.h"
-#include "connect.h"
-#include "command.h"
+#include "user.h"
+#include "context.h"
+#include "single_service.h"
 
 #define BACKLOG 5
 #define MAX_BUFFER_SIZE 512
 
+void * service_single_client(void * args);
+
 int main(int argc, char *argv[])
 {
+    /* If a client closes a connection, this will generally produce a SIGPIPE
+       signal that will kill the process. We want to ignore this signal, so
+       send() just returns -1 when this happens. */
+    sigset_t new;
+    sigemptyset (&new);
+    sigaddset(&new, SIGPIPE);
+    if (pthread_sigmask(SIG_BLOCK, &new, NULL) != 0) 
+    {
+        perror("Unable to mask SIGPIPE");
+        exit(-1);
+    }
+
     int opt;
     char *port = "6667", *passwd = NULL, *servername = NULL, *network_file = NULL;
     int verbosity = 0;
@@ -136,7 +153,12 @@ int main(int argc, char *argv[])
 
     int server_fd, client_fd;
 
-    struct connect_info *connections = NULL; // create the pointer to hash table
+    pthread_t worker_thread;
+    struct work_args * wa;
+
+    struct context * ctx = malloc(sizeof(struct context)); //create global context
+    struct user * users = NULL; // create the pointer to hash table, which stores users' info
+    ctx->users_hash_table=users;
 
     struct addrinfo hints, *res, *p;
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -194,21 +216,50 @@ int main(int argc, char *argv[])
     chilog(INFO, "server: waiting for connections...");
 
     while (true)
-    {
-        client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &sin_size);
+    {   
+        
+        if((client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &sin_size))==-1){
+            chilog(INFO, "Could not accept() connection");
+            continue;
+        }
+        wa = malloc(sizeof(struct work_args));
+        
 
-        connect_info_handle cinfo = (connect_info_handle)malloc(sizeof(connect_info));
-        init_cinfo(cinfo);
-        cinfo->host_server = host_server;
-        cinfo->client_fd = client_fd;
-
-        char host_client[1024];
-        getnameinfo((struct sockaddr *)&client_addr, sizeof client_addr, host_client, sizeof host_client,
+        //construct user_info for this connection
+        user_handle user_info = create_user();
+        user_info->client_fd = client_fd;
+        char client_host_name[1024];
+        getnameinfo((struct sockaddr *)&client_addr, sizeof client_addr, client_host_name, sizeof client_host_name,
                     NULL, 0, 0);
-        chilog(INFO, "host of client: %s", host_client);
+        chilog(INFO, "client host name: %s", client_host_name);
+        user->client_host = client_host_name;
+        
+        //construct arguments for thread function
+        wa->user_info=user_info;
+        wa->ctx=ctx;
 
-        cinfo->host_client = host_client;
+        if (pthread_create(&worker_thread, NULL, service_single_client, wa) != 0)
+        {
+            perror("Could not create a worker thread");
+            free(wa);
+            close(client_fd);
+            close(server_fd);
+            return EXIT_FAILURE;
+        }
+    }
 
+    close(server_fd);
+
+    return 0;
+}
+
+void * service_single_client(void * args){
+        //extract arguments
+        struct work_args * wa=(struct work_args *)args;
+        context_handle ctx=wa->ctx;
+        user_handle user_info=wa->user_info;
+
+        
         char recv_msg[MAX_BUFFER_SIZE];
         char buffer[MAX_BUFFER_SIZE];
         int ptr = 0;
@@ -240,11 +291,4 @@ int main(int argc, char *argv[])
                 flag = c == '\r';
             }
         }
-
-        destroy_cinfo(cinfo);
-    }
-
-    close(server_fd);
-
-    return 0;
 }

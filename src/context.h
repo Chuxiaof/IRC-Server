@@ -5,7 +5,6 @@
 
 struct context{
     char *server_host;
-
     user_handle user_hash_table;
 };
 

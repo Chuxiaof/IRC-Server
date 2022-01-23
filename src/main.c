@@ -158,8 +158,8 @@ int main(int argc, char *argv[])
 
     // create global context
     context_handle ctx = (context_handle)malloc(sizeof(context));
-    // struct user * users = NULL; // create the pointer to hash table, which stores users' info
-    // ctx->users_hash_table=users;
+    struct user * users = NULL; // create the pointer to hash table, which stores users' info
+    ctx->user_hash_table=users;
 
     struct addrinfo hints, *res, *p;
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -219,6 +219,7 @@ int main(int argc, char *argv[])
     char server_host_name[HOST_NAME_LENGTH];
     getnameinfo(p->ai_addr, p->ai_addrlen, server_host_name, HOST_NAME_LENGTH, NULL, 0, 0);
     chilog(INFO, "server host name: %s", server_host_name);
+    ctx->server_host=server_host_name;
 
     freeaddrinfo(res);
 
@@ -242,7 +243,7 @@ int main(int argc, char *argv[])
 
         user_handle user_info = create_user(); // create a user_handle for each thread
         user_info->client_fd = client_fd;
-        char * client_host_name = malloc(sizeof(char)*100);
+        char * client_host_name = malloc(HOST_NAME_LENGTH);
         if(client_host_name==NULL){
             chilog(ERROR, "fail to allocate memory for client_host_name");
         }

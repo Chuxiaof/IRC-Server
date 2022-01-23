@@ -11,7 +11,7 @@
 #include "log.h"
 
 user_handle create_user() {
-    user_handle user = (user_handle) malloc(sizeof(user));
+    user_handle user = (user_handle) malloc(sizeof(struct user));
     if (user == NULL) {
         chilog(ERROR, "fail to create user: no enough memory");
         return NULL;

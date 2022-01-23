@@ -226,7 +226,9 @@ int main(int argc, char *argv[])
 
     while (true)
     {
-        client_addr = calloc(1, sin_size); // allocate client_addr for each thread
+        if((client_addr = calloc(1, sin_size))==NULL){ // allocate client_addr for each thread
+            chilog(ERROR, "fail to allocate memory for client_addr");
+        } 
         if ((client_fd = accept(server_fd, (struct sockaddr *)client_addr, &sin_size)) == -1)
         {
             free(client_addr);
@@ -234,11 +236,16 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        wa = calloc(1, sizeof(struct worker_args)); // create thread function args for each thread
+        if((wa = calloc(1, sizeof(struct worker_args)))==NULL){// create thread function args for each thread
+            chilog(ERROR, "fail to allocate memory for wa");
+        } 
 
         user_handle user_info = create_user(); // create a user_handle for each thread
         user_info->client_fd = client_fd;
-        char *client_host_name = malloc(HOST_NAME_LENGTH);
+        char * client_host_name = malloc(sizeof(char)*100);
+        if(client_host_name==NULL){
+            chilog(ERROR, "fail to allocate memory for client_host_name");
+        }
         getnameinfo((struct sockaddr *)client_addr, sin_size, client_host_name, HOST_NAME_LENGTH,
                     NULL, 0, 0);
         chilog(INFO, "client host name: %s", client_host_name);

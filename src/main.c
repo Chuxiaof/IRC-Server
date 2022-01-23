@@ -65,22 +65,20 @@
 #define MAX_BUFFER_SIZE 512
 #define HOST_NAME_LENGTH 1024
 
-void * service_single_client(void * args);
+void *service_single_client(void *args);
 
 int main(int argc, char *argv[])
 {
-    /* If a client closes a connection, this will generally produce a SIGPIPE
-       signal that will kill the process. We want to ignore this signal, so
-       send() just returns -1 when this happens. */
     sigset_t new;
-    sigemptyset (&new);
+    sigemptyset(&new);
     sigaddset(&new, SIGPIPE);
-    if (pthread_sigmask(SIG_BLOCK, &new, NULL) != 0) 
+    if (pthread_sigmask(SIG_BLOCK, &new, NULL) != 0)
     {
         perror("Unable to mask SIGPIPE");
         exit(-1);
     }
 
+    // process command line arguments
     int opt;
     char *port = "6667", *passwd = NULL, *servername = NULL, *network_file = NULL;
     int verbosity = 0;
@@ -152,16 +150,16 @@ int main(int argc, char *argv[])
         break;
     }
 
-    /* Your code goes here */
-
+    // socket
     int server_fd, client_fd;
 
     pthread_t worker_thread;
-    struct worker_args * wa;
+    struct worker_args *wa;
 
-    struct context * ctx = malloc(sizeof(struct context)); //create global context
-    struct user * users = NULL; // create the pointer to hash table, which stores users' info
-    ctx->users_hash_table=users;
+    // create global context
+    context_handle ctx = (context_handle)malloc(sizeof(context));
+    // struct user * users = NULL; // create the pointer to hash table, which stores users' info
+    // ctx->users_hash_table=users;
 
     struct addrinfo hints, *res, *p;
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -169,7 +167,8 @@ int main(int argc, char *argv[])
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
-    struct sockaddr_in * client_addr;
+    // TODO: sockaddr_storage
+    struct sockaddr_in *client_addr;
     socklen_t sin_size = sizeof(struct sockaddr_in);
 
     int rv, yes = 1;
@@ -183,71 +182,77 @@ int main(int argc, char *argv[])
     {
         if ((server_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
         {
-            chilog(WARNING, "server: socket error");
+            chilog(WARNING, "could not open socket");
             continue;
         }
+
         if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
         {
-            chilog(CRITICAL, "setsockopt error");
-            exit(1);
-        }
-        if (bind(server_fd, p->ai_addr, p->ai_addrlen) == -1)
-        {
+            chilog(WARNING, "setsockopt error");
             close(server_fd);
-            chilog(WARNING, "server: bind error");
             continue;
         }
+
+        if (bind(server_fd, p->ai_addr, p->ai_addrlen) == -1)
+        {
+            chilog(WARNING, "server: bind failed");
+            close(server_fd);
+            continue;
+        }
+
+        if (listen(server_fd, BACKLOG) == -1)
+        {
+            chilog(WARNING, "server: listen failed");
+            exit(1);
+        }
+
         break;
     }
 
     if (p == NULL)
     {
-        chilog(CRITICAL, "server: failed to bind");
+        chilog(CRITICAL, "could not find a socket to bind to");
         exit(1);
     }
 
-    //get the hostname of server
+    // get the hostname of server
     char server_host_name[HOST_NAME_LENGTH];
-    getnameinfo(p->ai_addr, p->ai_addrlen, server_host_name, HOST_NAME_LENGTH , NULL , 0 , 0);
+    getnameinfo(p->ai_addr, p->ai_addrlen, server_host_name, HOST_NAME_LENGTH, NULL, 0, 0);
     chilog(INFO, "server host name: %s", server_host_name);
 
     freeaddrinfo(res);
-    
-    if (listen(server_fd, BACKLOG) == -1)
-    {
-        chilog(CRITICAL, "listen error");
-        exit(1);
-    }
 
-    
     chilog(INFO, "server: waiting for connections...");
 
     while (true)
-    {   
-        client_addr=malloc(sin_size); //allocate client_addr for each thread
-        if((client_fd = accept(server_fd, (struct sockaddr *)client_addr, &sin_size))==-1){
-            chilog(INFO, "Could not accept() connection");
+    {
+        client_addr = calloc(1, sin_size); // allocate client_addr for each thread
+        if ((client_fd = accept(server_fd, (struct sockaddr *)client_addr, &sin_size)) == -1)
+        {
+            free(client_addr);
+            chilog(INFO, "Could not accept connection");
             continue;
         }
 
-        wa = malloc(sizeof(struct worker_args)); //create thread function args for each thread
-        
-        user_handle user_info = create_user(); //create a user_handle for each thread
+        wa = calloc(1, sizeof(struct worker_args)); // create thread function args for each thread
+
+        user_handle user_info = create_user(); // create a user_handle for each thread
         user_info->client_fd = client_fd;
-        char * client_host_name=malloc(HOST_NAME_LENGTH);
+        char *client_host_name = malloc(HOST_NAME_LENGTH);
         getnameinfo((struct sockaddr *)client_addr, sin_size, client_host_name, HOST_NAME_LENGTH,
                     NULL, 0, 0);
         chilog(INFO, "client host name: %s", client_host_name);
         user_info->client_host_name = client_host_name;
-        
-        //construct arguments for thread function
-        wa->user_info=user_info; 
-        wa->ctx=ctx;
-        free(client_addr);
+
+        // construct arguments for thread function
+        wa->user_info = user_info;
+        wa->ctx = ctx;
+
+        // free(client_addr);
 
         if (pthread_create(&worker_thread, NULL, service_single_client, wa) != 0)
         {
-            perror("Could not create a worker thread");
+            perror("could not create a worker thread");
             free(wa);
             close(client_fd);
             close(server_fd);
@@ -260,16 +265,14 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+void *service_single_client(void *args)
+{
+    // extract arguments
+    struct worker_args *wa = (struct worker_args *)args;
+    context_handle ctx = wa->ctx;
+    user_handle user_info = wa->user_info;
 
-
-
-void * service_single_client(void * args){
-    //extract arguments
-    struct worker_args * wa=(struct worker_args *)args;
-    context_handle ctx=wa->ctx;
-    user_handle user_info=wa->user_info;
-
-    message_handle msg;
+    pthread_detach(pthread_self());
 
     char recv_msg[MAX_BUFFER_SIZE];
     char buffer[MAX_BUFFER_SIZE];
@@ -279,33 +282,39 @@ void * service_single_client(void * args){
     while (true)
     {
         int len = recv(user_info->client_fd, recv_msg, MAX_BUFFER_SIZE, 0);
-        chilog(DEBUG, "recv_msg: %s", recv_msg);
-        if (len == 0){
-            chilog(INFO, "disconnected from %s", user_info->client_host_name);
+
+        if (len == 0)
+        {
+            chilog(INFO, "client %s disconnected", user_info->client_host_name);
             close(user_info->client_fd);
             pthread_exit(NULL);
         }
+
         if (len == -1)
         {
             chilog(ERROR, "recv from %s fail", user_info->client_host_name);
             close(user_info->client_fd);
             pthread_exit(NULL);
         }
+
+        chilog(DEBUG, "recv_msg: %s", recv_msg);
+
         for (int i = 0; i < len; i++)
         {
             char c = recv_msg[i];
             if (c == '\n' && flag)
-            {   
-                //whenever we identify a complete command
+            {
+                // whenever we identify a complete command
                 sds command = sdsempty();
                 command = sdscpylen(command, buffer, ptr - 1);
-                //create a message
-                msg=malloc(sizeof(message_t));
-                //transform command into message
+                // create a message
+                message_handle msg = malloc(sizeof(message_t));
+                // transform command into message
                 message_from_string(msg, command);
-                //process the message
+                // process the message
                 process_cmd(ctx, user_info, msg);
-                //after processing a command, continue to analyze the next command
+                // TODO: free message
+                // after processing a command, continue to analyze the next command
                 flag = false;
                 ptr = 0;
                 continue;

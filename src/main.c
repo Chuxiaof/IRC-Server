@@ -222,14 +222,15 @@ int main(int argc, char *argv[])
     // }
 
     // get the hostname of server
-    // char *server_host_name = malloc(HOST_NAME_LENGTH);
-    struct hostent *he;
+    char *server_host_name = malloc(HOST_NAME_LENGTH);
+    gethostname(server_host_name, HOST_NAME_LENGTH);
+    // struct hostent *he;
     // getnameinfo(p->ai_addr, p->ai_addrlen, server_host_name, HOST_NAME_LENGTH, NULL, 0, 0);
-    he = gethostbyaddr(p->ai_addr, p->ai_addrlen, AF_INET);
-    chilog(INFO, "server host name: %s", he->h_name);
-    ctx->server_host = he->h_name;
+    // he = gethostbyaddr(p->ai_addr, p->ai_addrlen, AF_INET);
+    // chilog(INFO, "server host name: %s", he->h_name);
+    // ctx->server_host = he->h_name;
     // chilog(INFO, "server host name: %s", server_host_name);
-    // ctx->server_host=server_host_name;
+    ctx->server_host=server_host_name;
 
     freeaddrinfo(res);
 

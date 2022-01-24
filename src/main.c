@@ -58,8 +58,6 @@
 #include "user.h"
 #include "context.h"
 #include "single_service.h"
-#include "message.h"
-#include "command.h"
 
 #define BACKLOG 5
 #define MAX_BUFFER_SIZE 512

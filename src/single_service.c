@@ -1,9 +1,13 @@
 #include "single_service.h"
 
 #include <sds.h>
+#include <pthread.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include "log.h"
 #include "message.h"
+#include "command.h"
 
 #define MAX_BUFFER_SIZE 512
 

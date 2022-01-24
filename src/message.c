@@ -42,7 +42,9 @@ int message_from_string(message_handle msg, char *s) {
     return 0;
 }
 
-int message_to_string(message_handle msg, char *s) {}
+int message_to_string(message_handle msg, char *s) {
+    return 0;
+}
 
 int message_construct(message_handle msg, char *prefix, char *cmd) {
     if (msg == NULL) {
@@ -89,7 +91,9 @@ int message_add_parameter(message_handle msg, char * param, bool longlast) {
     return 0;
 }
 
-int message_destroy(message_handle msg) {}
+int message_destroy(message_handle msg) {
+    return 0;
+}
 
 bool empty_string(char *str) {
     return str == NULL || sdslen(str) == 0;

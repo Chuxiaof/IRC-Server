@@ -9,7 +9,7 @@ typedef int (*handler_func)(context_handle ctx, user_handle user_info, message_h
 
 struct handler_entry
 {
-    char * command_name;
+    char *command_name;
     handler_func func;
 };
 

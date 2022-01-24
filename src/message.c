@@ -42,20 +42,22 @@ int message_from_string(message_handle msg, char *s) {
     return 0;
 }
 
-int message_to_string(message_handle msg, char **s) {}
+int message_to_string(message_handle msg, char *s) {
+    return 0;
+}
 
 int message_construct(message_handle msg, char *prefix, char *cmd) {
     if (msg == NULL) {
         chilog(ERROR, "message_construct: empty message_handle");
         return -1;
     }
+
     if (empty_string(prefix)) {
-        chilog(ERROR, "message_construct: empty prefix");
-        return -1;
+        chilog(WARNING, "message_construct: empty prefix");
     }
+
     if (empty_string(cmd)) {
-        chilog(ERROR, "message_construct: empty cmd");
-        return -1;
+        chilog(WARNING, "message_construct: empty cmd");
     }
 
     msg->prefix = prefix;
@@ -68,24 +70,30 @@ int message_add_parameter(message_handle msg, char * param, bool longlast) {
         chilog(ERROR, "message_add_parameter: empty message_handle");
         return -1;
     }
+
     if (msg->nparams == 15) {
         chilog(ERROR, "message_add_parameter: already 15 params, can't add more");
         return -1;
     }
+
     if (longlast) {
         chilog(ERROR, "message_add_parameter: longlast is true, can't add params any more");
         return -1;
     }
+
     if (empty_string(param)) {
         chilog(WARNING, "message_add_parameter: do not add empty param (ignored)");
         return 0;
     }
+    
     msg->params[msg->nparams++] = param;
     msg->longlast = longlast;
     return 0;
 }
 
-int message_destroy(message_handle msg) {}
+int message_destroy(message_handle msg) {
+    return 0;
+}
 
 bool empty_string(char *str) {
     return str == NULL || sdslen(str) == 0;

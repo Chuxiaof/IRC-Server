@@ -16,6 +16,7 @@ add_executable(chirc
     src/handler.c
     src/message.c
     src/user.c
+    src/single_service.c
     lib/sds/sds.c)
 
 target_link_libraries(chirc pthread)

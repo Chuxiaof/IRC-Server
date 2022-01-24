@@ -32,34 +32,6 @@ void destroy_user(user_handle user) {
     free(user);
 }
 
-<<<<<<< HEAD
 
 
 
-=======
-bool can_register(user_handle user) {
-    if (user == NULL) {
-        chilog(CRITICAL, "can_register: empty user_handle");
-        exit(1);
-    }
-    return user->nick != NULL && user->username != NULL;
-}
-
-void send_welcome(user_handle user, char *server_host_name) {
-    if (user == NULL) {
-        chilog(CRITICAL, "send_welcome: empty user_handle");
-        exit(1);
-    }
-
-    if (server_host_name == NULL) {
-        chilog(WARNING, "send_welcome: server_host_name null");
-    }
-
-    char msg[512];
-    sprintf(msg, ":%s %s %s :Welcome to the Internet Relay Network %s!%s@%s\r\n",
-            server_host_name, RPL_WELCOME, user->nick,
-            user->nick, user->username, user->client_host_name);
-    send(user->client_fd, msg, strlen(msg), 0);
-    chilog(INFO, "send welcome message to %s@%s", user->nick, user->client_host_name);
-}
->>>>>>> 0052bc9019f6bbb6eb363d4c50f93e81c03554e9

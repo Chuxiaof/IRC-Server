@@ -150,12 +150,19 @@ static int send_welcome(user_handle user_info, char *server_host_name)
     }
 
     char myinfo[MAX_BUFFER_SIZE];
-    sprintf(myinfo, ":%s %s %s %s TBD TBD TBD\r\n",
+    sprintf(myinfo, ":%s %s %s %s 1.0 ao mtov\r\n",
             server_host_name, RPL_MYINFO, user_info->nick, server_host_name);
     if (send_reply(myinfo, NULL, user_info) == -1)
     {
         return -1;
     }
+
+    send_reply(":hostname 251 user1 :There are 1 users and 0 services on 1 servers\r\n",NULL,user_info);
+    send_reply(":hostname 252 user1 0 :operator(s) online\r\n",NULL,user_info);
+    send_reply(":hostname 253 user1 0 :unknown connection(s)\r\n",NULL,user_info);
+    send_reply(":hostname 254 user1 0 :channels formed\r\n",NULL,user_info);
+    send_reply(":hostname 255 user1 :I have 1 clients and 1 servers\r\n",NULL,user_info);
+    send_reply(":hostname 422 user1 :MOTD File is missing\r\n",NULL,user_info);
 
     return 0;
 }

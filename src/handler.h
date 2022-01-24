@@ -9,4 +9,16 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg);
 
 int handler_USER(context_handle ctx, user_handle user_info, message_handle msg);
 
+int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle msg);
+
+int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg);
+
+int handler_PING(context_handle ctx, user_handle user_info, message_handle msg);
+
+int handler_PONG(context_handle ctx, user_handle user_info, message_handle msg);
+
+int handler_WHOIS(context_handle ctx, user_handle user_info, message_handle msg);
+
+int handler_UNKNOWNCOMMAND(context_handle ctx, user_handle user_info, message_handle msg);
+
 #endif

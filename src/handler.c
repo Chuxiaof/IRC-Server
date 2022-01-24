@@ -101,6 +101,162 @@ int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
     return 0;
 }
 
+int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle msg) {
+    if (!user_info->registered) {
+        // TODO
+        return 0;
+    }
+
+    if (!msg->longlast) {
+        // ERR_NOTEXTTOSEND
+        char ret[MAX_BUFFER_SIZE];
+        sprintf(ret, ":%s %s %s :No text to send\r\n",
+            ctx->server_host, ERR_NOTEXTTOSEND, user_info->nick);
+        return send_reply(ret, NULL, user_info);
+    }
+
+    if (msg->nparams < 2) {
+        // ERR_NORECIPIENT
+        char ret[MAX_BUFFER_SIZE];
+        sprintf(ret, ":%s %s %s :No recipient given (PRIVMSG)\r\n",
+            ctx->server_host, ERR_NORECIPIENT, user_info->nick);
+        return send_reply(ret, NULL, user_info);
+    }
+
+    char *target_nick = msg->params[0];
+    user_handle target_user;
+
+    HASH_FIND_STR(ctx->user_hash_table, target_nick, target_user);
+    if (!target_user) {
+        // ERR_NOSUCHNICK
+        char ret[MAX_BUFFER_SIZE];
+        sprintf(ret, ":%s %s %s %s :No such nick/channel\r\n",
+            ctx->server_host, ERR_NOSUCHNICK, user_info->nick, target_nick);
+        return send_reply(ret, NULL, user_info);
+    }
+
+    char ret[MAX_BUFFER_SIZE];
+    sprintf(ret, ":%s!%s@%s PRIVMSG %s :%s\r\n",
+        user_info->nick, user_info->fullname, user_info->client_host_name, 
+        target_nick, msg->params[msg->nparams - 1]);
+    chilog(INFO, "%s sends an message to %s", user_info->nick, target_user->nick);
+    return send_reply(ret, NULL, target_user);
+}
+
+int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg) {
+    if (!user_info->registered) {
+        // TODO
+        return 0;
+    }
+
+    if (!msg->longlast || msg->nparams < 2) {
+        chilog(WARNING, "handler_NOTICE: error params");
+        return 0;
+    }
+
+    char *target_nick = msg->params[0];
+    user_handle target_user;
+
+    HASH_FIND_STR(ctx->user_hash_table, target_nick, target_user);
+    if (!target_user) {
+        chilog(WARNING, "handler_NOTICE: no such nick\r\n");
+        return 0;
+    }
+
+    char ret[MAX_BUFFER_SIZE];
+    sprintf(ret, ":%s!%s@%s PRIVMSG %s :%s\r\n",
+        user_info->nick, user_info->fullname, user_info->client_host_name, 
+        target_nick, msg->params[msg->nparams - 1]);
+    chilog(INFO, "%s sends an message to %s", user_info->nick, target_user->nick);
+    return send_reply(ret, NULL, target_user);
+}
+
+int handler_PING(context_handle ctx, user_handle user_info, message_handle msg) {
+    if (!user_info->registered) {
+        // TODO
+        return 0;
+    }
+
+    char ret[MAX_BUFFER_SIZE];
+    sprintf(ret, "PONG %s\r\n", ctx->server_host);
+    return send_reply(ret, NULL, user_info);
+}
+
+int handler_PONG(context_handle ctx, user_handle user_info, message_handle msg) {
+    if (!user_info->registered) {
+        // TODO
+        return 0;
+    }
+
+    chilog(INFO, "receive PONG from %s", user_info->client_host_name);
+    // do nothing
+    return 0;
+}
+
+int handler_WHOIS(context_handle ctx, user_handle user_info, message_handle msg) {
+    if (!user_info->registered) {
+        // TODO
+        return 0;
+    }
+
+    if (msg->nparams < 1) {
+        // just ignore
+        return 0;
+    }
+
+    char *target_nick = msg->params[0];
+
+    user_handle target_user;
+    HASH_FIND_STR(ctx->user_hash_table, target_nick, target_user);
+    if (!target_user) {
+        // ERR_NOSUCHNICK
+        char ret[MAX_BUFFER_SIZE];
+        sprintf(ret, ":%s %s %s %s :No such nick/channel\r\n",
+            ctx->server_host, ERR_NOSUCHNICK, user_info->nick, target_nick);
+        return send_reply(ret, NULL, user_info);
+    }
+
+    char whoisuser[MAX_BUFFER_SIZE];
+    sprintf(whoisuser, ":%s %s %s %s %s %s * :%s",
+        ctx->server_host, RPL_WHOISUSER, user_info->nick,
+        target_user->nick, target_user->username, 
+        target_user->client_host_name, target_user->fullname);
+
+    if (send_reply(whoisuser, NULL, user_info) == -1) {
+        return -1;
+    }
+
+    char whoisserver[MAX_BUFFER_SIZE];
+    sprintf(whoisserver, ":%s %s %s %s %s :chirc-1.0",
+        ctx->server_host, RPL_WHOISSERVER, user_info->nick,
+        user_info->nick, ctx->server_host);
+    
+    if (send_reply(whoisserver, NULL, user_info) == -1) {
+        return -1;
+    }
+
+    char end[MAX_BUFFER_SIZE];
+    sprintf(end, ":%s %s %s %s :End of WHOIS list",
+        ctx->server_host, RPL_ENDOFWHOIS, user_info->nick, user_info->nick);
+    return send_reply(end, NULL, user_info);
+}
+
+int handler_UNKNOWNCOMMAND(context_handle ctx, user_handle user_info, message_handle msg) {
+    if (!user_info->registered) {
+        // TODO
+        // just ignore
+        return 0;
+    }
+    
+    char ret[MAX_BUFFER_SIZE];
+    sprintf(ret, ":%s %s %s %s :Unknown command",
+        ctx->server_host, ERR_UNKNOWNCOMMAND, user_info->nick, msg->cmd);
+    return send_reply(ret, NULL, user_info);
+}
+
+
+// helper functions
+
 static int check_insufficient_param(int have, int target, char *cmd, user_handle user_info, context_handle ctx)
 {
     if (have < target)

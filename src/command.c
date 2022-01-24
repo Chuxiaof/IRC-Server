@@ -16,6 +16,11 @@ struct handler_entry
 static struct handler_entry handler_entries[] = {
     {"NICK", handler_NICK},
     {"USER", handler_USER},
+    {"PRIVMSG", handler_PRIVMSG},
+    {"NOTICE", handler_NOTICE},
+    {"PING", handler_PING},
+    {"PONG", handler_PONG},
+    {"WHOIS", handler_WHOIS}
 };
 
 int handlers_num = sizeof(handler_entries) / sizeof(struct handler_entry);
@@ -33,7 +38,7 @@ void process_cmd(context_handle ctx, user_handle user_info, message_handle msg)
     }
     if (i == handlers_num)
     {
-        // TODO 
         chilog(WARNING, "unsupported command");
+        handler_UNKNOWNCOMMAND(ctx, user_info, msg);
     }
 }

@@ -26,7 +26,7 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
         chilog(ERROR, "handler_NICK: no nickname given");
         // ERR_NONICKNAMEGIVEN
         char ret[MAX_BUFFER_SIZE];
-        sprintf(ret, ":%s %d * :No nickname given\r\n",
+        sprintf(ret, ":%s %s * :No nickname given\r\n",
                 ctx->server_host, ERR_NONICKNAMEGIVEN);
         return send_reply(ret, NULL, user_info);
     }
@@ -39,7 +39,7 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
     {
         // ERR_NICKNAMEINUSE
         char ret[MAX_BUFFER_SIZE];
-        sprintf(ret, ":%s %d * %s :Nickname is already in use\r\n",
+        sprintf(ret, ":%s %s * %s :Nickname is already in use\r\n",
                 ctx->server_host, ERR_NICKNAMEINUSE, nick);
         return send_reply(ret, NULL, user_info);
     }
@@ -69,7 +69,7 @@ int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
     if (user_info->registered == true)
     {
         char error_msg[MAX_BUFFER_SIZE];
-        sprintf(error_msg, ":%s %d %s :Unauthorized command (already registered)\r\n", ctx->server_host, ERR_ALREADYREGISTRED, user_info->nick);
+        sprintf(error_msg, ":%s %s %s :Unauthorized command (already registered)\r\n", ctx->server_host, ERR_ALREADYREGISTRED, user_info->nick);
         return send_reply(error_msg, NULL, user_info);
     }
     // return value of check_insufficient_param()
@@ -106,7 +106,7 @@ static int check_insufficient_param(int have, int target, char *cmd, user_handle
     if (have < target)
     {
         char error_msg[MAX_BUFFER_SIZE];
-        sprintf(error_msg, ":%s %d %s %s :Not enough parameters\r\n",
+        sprintf(error_msg, ":%s %s %s %s :Not enough parameters\r\n",
                 ctx->server_host, ERR_NEEDMOREPARAMS, user_info->nick, cmd);
         if (send_reply(error_msg, NULL, user_info) == -1)
         {
@@ -125,7 +125,7 @@ static bool can_register(user_handle user_info)
 static int send_welcome(user_handle user_info, char *server_host_name)
 {
     char welcome[MAX_BUFFER_SIZE];
-    sprintf(welcome, ":%s %d %s :Welcome to the Internet Relay Network %s!%s@%s\r\n",
+    sprintf(welcome, ":%s %s %s :Welcome to the Internet Relay Network %s!%s@%s\r\n",
             server_host_name, RPL_WELCOME, user_info->nick,
             user_info->nick, user_info->username, user_info->client_host_name);
     if (send_reply(welcome, NULL, user_info) == -1)
@@ -134,7 +134,7 @@ static int send_welcome(user_handle user_info, char *server_host_name)
     }
 
     char yourhost[MAX_BUFFER_SIZE];
-    sprintf(yourhost, ":%s %d %s :Your host is %s, running version 1.0\r\n",
+    sprintf(yourhost, ":%s %s %s :Your host is %s, running version 1.0\r\n",
             server_host_name, RPL_YOURHOST, user_info->nick, user_info->client_host_name);
     if (send_reply(yourhost, NULL, user_info) == -1)
     {
@@ -142,7 +142,7 @@ static int send_welcome(user_handle user_info, char *server_host_name)
     }
 
     char created[MAX_BUFFER_SIZE];
-    sprintf(created, ":%s %d %s :This server was created TBD\r\n",
+    sprintf(created, ":%s %s %s :This server was created TBD\r\n",
             server_host_name, RPL_CREATED, user_info->nick);
     if (send_reply(created, NULL, user_info) == -1)
     {
@@ -150,7 +150,7 @@ static int send_welcome(user_handle user_info, char *server_host_name)
     }
 
     char myinfo[MAX_BUFFER_SIZE];
-    sprintf(myinfo, ":%s %d %s %s TBD TBD TBD\r\n",
+    sprintf(myinfo, ":%s %s %s %s TBD TBD TBD\r\n",
             server_host_name, RPL_MYINFO, user_info->nick, server_host_name);
     if (send_reply(myinfo, NULL, user_info) == -1)
     {

@@ -17,7 +17,7 @@ typedef message_t * message_handle;
 
 int message_from_string(message_handle msg, char *s);
 
-int message_to_string(message_handle msg, char **s);
+int message_to_string(message_handle msg, char *s);
 
 int message_construct(message_handle msg, char *prefix, char *cmd);
 

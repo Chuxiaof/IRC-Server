@@ -21,4 +21,8 @@ int handler_WHOIS(context_handle ctx, user_handle user_info, message_handle msg)
 
 int handler_UNKNOWNCOMMAND(context_handle ctx, user_handle user_info, message_handle msg);
 
+int handler_QUIT(context_handle ctx, user_handle user_info, message_handle msg);
+
+int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg);
+
 #endif

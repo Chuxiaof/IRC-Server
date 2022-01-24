@@ -20,25 +20,26 @@ static struct handler_entry handler_entries[] = {
     {"NOTICE", handler_NOTICE},
     {"PING", handler_PING},
     {"PONG", handler_PONG},
-    {"WHOIS", handler_WHOIS}
+    {"WHOIS", handler_WHOIS},
+    {"QUIT", handler_QUIT},
+    {"LUSERS", handler_LUSERS}
 };
 
 int handlers_num = sizeof(handler_entries) / sizeof(struct handler_entry);
 
-void process_cmd(context_handle ctx, user_handle user_info, message_handle msg)
+int process_cmd(context_handle ctx, user_handle user_info, message_handle msg)
 {
     int i;
     for (i = 0; i < handlers_num; i++)
     {
         if (!strcmp(msg->cmd, handler_entries[i].command_name))
         {
-            handler_entries[i].func(ctx, user_info, msg);
-            break;
+            return handler_entries[i].func(ctx, user_info, msg);
         }
     }
     if (i == handlers_num)
     {
         chilog(WARNING, "unsupported command");
-        handler_UNKNOWNCOMMAND(ctx, user_info, msg);
+        return handler_UNKNOWNCOMMAND(ctx, user_info, msg);
     }
 }

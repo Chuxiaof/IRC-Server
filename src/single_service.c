@@ -58,7 +58,12 @@ void *service_single_client(void *args)
                 // transform command into message
                 message_from_string(msg, command);
                 // process the message
-                process_cmd(ctx, user_info, msg);
+                if(process_cmd(ctx, user_info, msg)==-1){
+                    //if there's an error during processing this command, then kill this thread
+                    close(user_info->client_fd);
+                    free(wa);
+                    pthread_exit(NULL);
+                }
                 // TODO: free message
                 // after processing a command, continue to analyze the next command
                 flag = false;

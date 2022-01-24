@@ -104,10 +104,10 @@ int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
 
 int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle msg)
 {
-    int ret = check_registered(ctx, user_info);
-    if (ret != 1)
+    int res = check_registered(ctx, user_info);
+    if (res != 1)
     {
-        return ret;
+        return res;
     }
 
     if (!msg->longlast)
@@ -151,10 +151,10 @@ int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle ms
 
 int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg)
 {
-    int ret = check_registered(ctx, user_info);
-    if (ret != 1)
+    int res = check_registered(ctx, user_info);
+    if (res != 1)
     {
-        return ret;
+        return res;
     }
 
     if (!msg->longlast || msg->nparams < 2)
@@ -183,10 +183,10 @@ int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg
 
 int handler_PING(context_handle ctx, user_handle user_info, message_handle msg)
 {
-    int ret = check_registered(ctx, user_info);
-    if (ret != 1)
+    int res = check_registered(ctx, user_info);
+    if (res != 1)
     {
-        return ret;
+        return res;
     }
 
     char ret[MAX_BUFFER_SIZE];
@@ -196,10 +196,10 @@ int handler_PING(context_handle ctx, user_handle user_info, message_handle msg)
 
 int handler_PONG(context_handle ctx, user_handle user_info, message_handle msg)
 {
-    int ret = check_registered(ctx, user_info);
-    if (ret != 1)
+    int res = check_registered(ctx, user_info);
+    if (res != 1)
     {
-        return ret;
+        return res;
     }
 
     chilog(INFO, "receive PONG from %s", user_info->client_host_name);
@@ -209,10 +209,10 @@ int handler_PONG(context_handle ctx, user_handle user_info, message_handle msg)
 
 int handler_WHOIS(context_handle ctx, user_handle user_info, message_handle msg)
 {
-    int ret = check_registered(ctx, user_info);
-    if (ret != 1)
+    int res = check_registered(ctx, user_info);
+    if (res != 1)
     {
-        return ret;
+        return res;
     }
 
     if (msg->nparams < 1)
@@ -351,6 +351,8 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
     {
         return -1;
     }
+
+    return 0;
 }
 
 static int check_insufficient_param(int have, int target, char *cmd, user_handle user_info, context_handle ctx)

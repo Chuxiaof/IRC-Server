@@ -14,6 +14,7 @@
 static int check_insufficient_param(int have, int target, char *cmd, user_handle user_info, context_handle ctx);
 static bool can_register(user_handle user_info);
 
+static int check_registered(context_handle ctx, user_handle user_info);
 static int sendall(int s, char *buf, int *len);
 static int send_reply(char *str, message_handle msg, user_handle user_info);
 static int send_welcome(user_handle user_info, char *server_host_name);
@@ -64,6 +65,7 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
     return 0;
 }
 
+
 int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
 {
     if (user_info->registered == true)
@@ -99,6 +101,78 @@ int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
         send_welcome(user_info, ctx->server_host);
     }
     return 0;
+}
+
+int handler_QUIT(context_handle ctx, user_handle user_info, message_handle msg){
+    //check whether the user has been registered
+    int ret = check_registered(ctx, user_info);
+    if(ret!=1){
+        return ret;
+    }
+
+    char * quit_msg;
+    if(msg->longlast==true){
+        quit_msg=msg->params[(msg->nparams)-1];
+    }else{
+        quit_msg="Client Quit";
+    }
+    char response[MAX_BUFFER_SIZE];
+    sprintf(response, "ERROR :CLosing Link: %s (%s)\r\n",
+                user_info->client_host_name, quit_msg);
+    send_reply(response, NULL, user_info);
+    return -1;
+}
+
+int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg){
+    //check whether the user has been registered
+    int ret = check_registered(ctx, user_info);
+    if(ret!=1){
+        return ret;
+    }
+
+    int num_user=HASH_COUNT(ctx->user_hash_table);
+    char luser_client[MAX_BUFFER_SIZE];
+    sprintf(luser_client, ":%s %s %s :There are %d users and %d services on %d servers\r\n", 
+        ctx->server_host, RPL_LUSERCLIENT, user_info->nick, num_user, 0, 1);
+    if (send_reply(luser_client, NULL, user_info) == -1)
+    {
+        return -1;
+    }
+
+    //TODO: modify the %d parameters 
+
+    char luser_op[MAX_BUFFER_SIZE];
+    sprintf(luser_op, ":%s %s %s %d :operator(s) online\r\n", 
+        ctx->server_host, RPL_LUSEROP, user_info->nick, 1);
+    if (send_reply(luser_op, NULL, user_info) == -1)
+    {
+        return -1;
+    }
+
+    char luser_unknown[MAX_BUFFER_SIZE];
+    sprintf(luser_unknown, ":%s %s %s %d :unknown connection(s)\r\n", 
+        ctx->server_host, RPL_LUSERUNKNOWN, user_info->nick, 1);
+    if (send_reply(luser_unknown, NULL, user_info) == -1)
+    {
+        return -1;
+    }
+
+    char luser_channels[MAX_BUFFER_SIZE];
+    sprintf(luser_channels, ":%s %s %s %d :channels formed\r\n", 
+        ctx->server_host, RPL_LUSERCHANNELS, user_info->nick, 1);
+    if (send_reply(luser_channels, NULL, user_info) == -1)
+    {
+        return -1;
+    }
+
+    char luser_me[MAX_BUFFER_SIZE];
+    sprintf(luser_me, ":%s %s %s :I have %d clients and %d servers\r\n", 
+        ctx->server_host, RPL_LUSERME, user_info->nick, 1, 0);
+    if (send_reply(luser_me, NULL, user_info) == -1)
+    {
+        return -1;
+    }
+
 }
 
 static int check_insufficient_param(int have, int target, char *cmd, user_handle user_info, context_handle ctx)
@@ -191,6 +265,7 @@ static int sendall(int s, char *buf, int *len)
     return n == -1 ? -1 : 0; // return -1 on failure, 0 on success
 }
 
+//return -1 if there is an error, return 0 otherwise
 static int send_reply(char *str, message_handle msg, user_handle user_info)
 {
     if (str == NULL && msg == NULL)
@@ -212,4 +287,17 @@ static int send_reply(char *str, message_handle msg, user_handle user_info)
     // return -1 if there's a send error
 
     return 0;
+}
+
+//if already registered, return 1
+//if not registered && send reply successffully, return 0
+//if not registered && error in sending reply, return -1
+static int check_registered(context_handle ctx, user_handle user_info){
+    if(user_info->registered==false){
+        char error_msg[MAX_BUFFER_SIZE];
+        sprintf(error_msg, ":%s %s %s :You have not registered\r\n", ctx->server_host, ERR_NOTREGISTERED, user_info->nick);
+        return send_reply(error_msg, NULL, user_info);
+    }else{
+        return 1;
+    }
 }

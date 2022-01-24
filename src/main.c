@@ -65,19 +65,8 @@
 #define MAX_BUFFER_SIZE 512
 #define HOST_NAME_LENGTH 1024
 
-void *service_single_client(void *args);
-
 int main(int argc, char *argv[])
 {
-    sigset_t new;
-    sigemptyset(&new);
-    sigaddset(&new, SIGPIPE);
-    if (pthread_sigmask(SIG_BLOCK, &new, NULL) != 0)
-    {
-        perror("Unable to mask SIGPIPE");
-        exit(-1);
-    }
-
     // process command line arguments
     int opt;
     char *port = "6667", *passwd = NULL, *servername = NULL, *network_file = NULL;
@@ -150,16 +139,23 @@ int main(int argc, char *argv[])
         break;
     }
 
+    /* code starts here*/
+
+    sigset_t new;
+    sigemptyset(&new);
+    sigaddset(&new, SIGPIPE);
+    if (pthread_sigmask(SIG_BLOCK, &new, NULL) != 0)
+    {
+        perror("Unable to mask SIGPIPE");
+        exit(-1);
+    }
+
     // socket
     int server_fd, client_fd;
 
+    // multi-thread
     pthread_t worker_thread;
     struct worker_args *wa;
-
-    // create global context
-    context_handle ctx = (context_handle)malloc(sizeof(context));
-    struct user * users = NULL; // create the pointer to hash table, which stores users' info
-    ctx->user_hash_table=users;
 
     struct addrinfo hints, *res, *p;
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -203,7 +199,8 @@ int main(int argc, char *argv[])
         if (listen(server_fd, BACKLOG) == -1)
         {
             chilog(WARNING, "server: listen failed");
-            exit(1);
+            close(server_fd);
+            continue;
         }
 
         break;
@@ -212,14 +209,20 @@ int main(int argc, char *argv[])
     if (p == NULL)
     {
         chilog(CRITICAL, "could not find a socket to bind to");
-        exit(1);
+        pthread_exit(NULL);
     }
 
+    // create global context
+    context_handle ctx = (context_handle) malloc(sizeof(context_t));
+    user_t *users = NULL; // create the pointer to hash table, which stores users' info
+    ctx->user_hash_table = users;
+
     // get the hostname of server
+    // TODO
     char server_host_name[HOST_NAME_LENGTH];
     getnameinfo(p->ai_addr, p->ai_addrlen, server_host_name, HOST_NAME_LENGTH, NULL, 0, 0);
     chilog(INFO, "server host name: %s", server_host_name);
-    ctx->server_host=server_host_name;
+    ctx->server_host = server_host_name;
 
     freeaddrinfo(res);
 
@@ -227,9 +230,12 @@ int main(int argc, char *argv[])
 
     while (true)
     {
-        if((client_addr = calloc(1, sin_size))==NULL){ // allocate client_addr for each thread
+        if ((client_addr = calloc(1, sin_size)) == NULL)
+        { 
+            // allocate client_addr for each thread
             chilog(ERROR, "fail to allocate memory for client_addr");
-        } 
+        }
+
         if ((client_fd = accept(server_fd, (struct sockaddr *)client_addr, &sin_size)) == -1)
         {
             free(client_addr);
@@ -237,26 +243,28 @@ int main(int argc, char *argv[])
             continue;
         }
 
-        if((wa = calloc(1, sizeof(struct worker_args)))==NULL){// create thread function args for each thread
+        if ((wa = calloc(1, sizeof(struct worker_args))) == NULL)
+        { 
+            // create thread function args for each thread
             chilog(ERROR, "fail to allocate memory for wa");
-        } 
+        }
 
         user_handle user_info = create_user(); // create a user_handle for each thread
         user_info->client_fd = client_fd;
-        char * client_host_name = malloc(HOST_NAME_LENGTH);
-        if(client_host_name==NULL){
+        char *client_host_name = malloc(HOST_NAME_LENGTH);
+        if (client_host_name == NULL)
+        {
             chilog(ERROR, "fail to allocate memory for client_host_name");
+        } else {
+            getnameinfo((struct sockaddr *)client_addr, sin_size, client_host_name, HOST_NAME_LENGTH,
+                        NULL, 0, 0);
+            chilog(INFO, "client host name: %s", client_host_name);
+            user_info->client_host_name = client_host_name;
         }
-        getnameinfo((struct sockaddr *)client_addr, sin_size, client_host_name, HOST_NAME_LENGTH,
-                    NULL, 0, 0);
-        chilog(INFO, "client host name: %s", client_host_name);
-        user_info->client_host_name = client_host_name;
 
         // construct arguments for thread function
         wa->user_info = user_info;
         wa->ctx = ctx;
-
-        // free(client_addr);
 
         if (pthread_create(&worker_thread, NULL, service_single_client, wa) != 0)
         {
@@ -271,64 +279,4 @@ int main(int argc, char *argv[])
     close(server_fd);
 
     return 0;
-}
-
-void *service_single_client(void *args)
-{
-    // extract arguments
-    struct worker_args *wa = (struct worker_args *)args;
-    context_handle ctx = wa->ctx;
-    user_handle user_info = wa->user_info;
-
-    pthread_detach(pthread_self());
-
-    char recv_msg[MAX_BUFFER_SIZE];
-    char buffer[MAX_BUFFER_SIZE];
-    int ptr = 0;
-    bool flag = false;
-
-    while (true)
-    {
-        int len = recv(user_info->client_fd, recv_msg, MAX_BUFFER_SIZE, 0);
-
-        if (len == 0)
-        {
-            chilog(INFO, "client %s disconnected", user_info->client_host_name);
-            close(user_info->client_fd);
-            pthread_exit(NULL);
-        }
-
-        if (len == -1)
-        {
-            chilog(ERROR, "recv from %s fail", user_info->client_host_name);
-            close(user_info->client_fd);
-            pthread_exit(NULL);
-        }
-
-        chilog(DEBUG, "recv_msg: %s", recv_msg);
-
-        for (int i = 0; i < len; i++)
-        {
-            char c = recv_msg[i];
-            if (c == '\n' && flag)
-            {
-                // whenever we identify a complete command
-                sds command = sdsempty();
-                command = sdscpylen(command, buffer, ptr - 1);
-                // create a message
-                message_handle msg = malloc(sizeof(message_t));
-                // transform command into message
-                message_from_string(msg, command);
-                // process the message
-                process_cmd(ctx, user_info, msg);
-                // TODO: free message
-                // after processing a command, continue to analyze the next command
-                flag = false;
-                ptr = 0;
-                continue;
-            }
-            buffer[ptr++] = c;
-            flag = c == '\r';
-        }
-    }
 }

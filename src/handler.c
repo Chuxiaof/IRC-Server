@@ -8,9 +8,7 @@
 #include "message.h"
 #include "log.h"
 
-bool check_param_number(int have, int target) {
-    return have >= target;
-}
+bool check_param_number(int have, int target);
 
 void handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
 {
@@ -28,6 +26,7 @@ void handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
             // add to ctx->user_table
             user_info->registered = true;
             // send welcome
+            // TODO, register
             send_welcome(user_info, ctx->server_host);
         }
     }
@@ -52,9 +51,14 @@ void handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
             // add to ctx->user_table
             user_info->registered = true;
             // send welcome
+            // TODO, register
             send_welcome(user_info, ctx->server_host);
         }
     }
 
     // HASH_ADD_KEYPTR(hh, connections, cinfo->nick, strlen(cinfo->nick), cinfo);
+}
+
+bool check_param_number(int have, int target) {
+    return have >= target;
 }

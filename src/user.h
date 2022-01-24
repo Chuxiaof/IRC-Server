@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <uthash.h>
 
-struct user
+struct user_t
 {
     char *nick;
     char *username;
@@ -19,15 +19,17 @@ struct user
     UT_hash_handle hh; 
 };
 
-typedef struct user user;
+typedef struct user_t user_t;
 
-typedef user * user_handle;
+typedef user_t * user_handle;
 
 user_handle create_user();
 
 void destroy_user(user_handle user);
 
 bool can_register(user_handle user);
+
+// void register(user_handle user);
 
 void send_welcome(user_handle user, char *server_host_name);
 

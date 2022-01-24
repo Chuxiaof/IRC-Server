@@ -3,13 +3,13 @@
 
 #include "user.h"
 
-struct context{
+struct context_t {
     char *server_host;
     user_handle user_hash_table;
 };
 
-typedef struct context context;
+typedef struct context_t context_t;
 
-typedef context * context_handle;
+typedef context_t * context_handle;
 
 #endif

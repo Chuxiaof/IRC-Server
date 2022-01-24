@@ -27,9 +27,7 @@ user_handle create_user();
 
 void destroy_user(user_handle user);
 
-bool can_register(user_handle user);
 
-void send_welcome(user_handle user, char *server_host_name);
 
 
 #endif

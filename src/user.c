@@ -34,16 +34,6 @@ void destroy_user(user_handle user) {
     free(user);
 }
 
-bool can_register(user_handle user) {
-    return user->nick != NULL && user->username != NULL;
-}
 
-void send_welcome(user_handle user, char *server_host_name) {
-    char msg[512];
-    sprintf(msg, ":%s %s %s :Welcome to the Internet Relay Network %s!%s@%s\r\n",
-            server_host_name, RPL_WELCOME, user->nick,
-            user->nick, user->username, user->client_host_name);
-    send(user->client_fd, msg, strlen(msg), 0);
-    chilog(INFO, "send welcome message to %s@%s", user->nick, user->client_host_name);
-    user->registered = true;
-}
+
+

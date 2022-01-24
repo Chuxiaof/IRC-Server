@@ -5,7 +5,7 @@
 #include "log.h"
 #include "handler.h"
 
-typedef void (*handler_func)(context_handle ctx, user_handle user_info, message_handle msg);
+typedef int (*handler_func)(context_handle ctx, user_handle user_info, message_handle msg);
 
 struct handler_entry
 {

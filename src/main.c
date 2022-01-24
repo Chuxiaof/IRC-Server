@@ -216,8 +216,7 @@ int main(int argc, char *argv[])
     ctx->user_hash_table = users;
 
     // get the hostname of server
-    // TODO
-    char server_host_name[HOST_NAME_LENGTH];
+    char *server_host_name = malloc(HOST_NAME_LENGTH);
     getnameinfo(p->ai_addr, p->ai_addrlen, server_host_name, HOST_NAME_LENGTH, NULL, 0, 0);
     chilog(INFO, "server host name: %s", server_host_name);
     ctx->server_host = server_host_name;

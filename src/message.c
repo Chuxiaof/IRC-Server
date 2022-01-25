@@ -31,10 +31,12 @@ int message_from_string(message_handle msg, char *s)
     sds *tokens = sdssplitlen(before_colon, sdslen(before_colon), " ", 1, &count_2);
 
     msg->cmd = tokens[0];
-    msg->nparams = count_2 - 1;
-    for (int i = 0; i < msg->nparams; i++)
-        if (tokens[i + 1] != NULL && sdslen(tokens[i + 1]) > 0)
+    msg->nparams = 0;
+    for (int i = 0; i < count_2 - 1; i++)
+        if (tokens[i + 1] != NULL && sdslen(tokens[i + 1]) > 0) {
             msg->params[i] = tokens[i + 1];
+            msg->nparams += 1;
+        }
 
     if (count_1 > 1)
     {

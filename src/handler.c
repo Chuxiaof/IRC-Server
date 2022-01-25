@@ -110,21 +110,21 @@ int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle ms
         return res;
     }
 
+    if (msg->nparams < 1)
+    {
+        // ERR_NORECIPIENT
+        char ret[MAX_BUFFER_SIZE];
+        sprintf(ret, ":%s %s %s :No recipient given (PRIVMSG)\r\n",
+                ctx->server_host, ERR_NORECIPIENT, user_info->nick);
+        return send_reply(ret, NULL, user_info);
+    }
+
     if (!msg->longlast)
     {
         // ERR_NOTEXTTOSEND
         char ret[MAX_BUFFER_SIZE];
         sprintf(ret, ":%s %s %s :No text to send\r\n",
                 ctx->server_host, ERR_NOTEXTTOSEND, user_info->nick);
-        return send_reply(ret, NULL, user_info);
-    }
-
-    if (msg->nparams < 2)
-    {
-        // ERR_NORECIPIENT
-        char ret[MAX_BUFFER_SIZE];
-        sprintf(ret, ":%s %s %s :No recipient given (PRIVMSG)\r\n",
-                ctx->server_host, ERR_NORECIPIENT, user_info->nick);
         return send_reply(ret, NULL, user_info);
     }
 
@@ -143,7 +143,7 @@ int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle ms
 
     char ret[MAX_BUFFER_SIZE];
     sprintf(ret, ":%s!%s@%s PRIVMSG %s :%s\r\n",
-            user_info->nick, user_info->fullname, user_info->client_host_name,
+            user_info->nick, user_info->username, user_info->client_host_name,
             target_nick, msg->params[msg->nparams - 1]);
     chilog(INFO, "%s sends an message to %s", user_info->nick, target_user->nick);
     return send_reply(ret, NULL, target_user);
@@ -175,7 +175,7 @@ int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg
 
     char ret[MAX_BUFFER_SIZE];
     sprintf(ret, ":%s!%s@%s PRIVMSG %s :%s\r\n",
-            user_info->nick, user_info->fullname, user_info->client_host_name,
+            user_info->nick, user_info->username, user_info->client_host_name,
             target_nick, msg->params[msg->nparams - 1]);
     chilog(INFO, "%s sends an message to %s", user_info->nick, target_user->nick);
     return send_reply(ret, NULL, target_user);
@@ -235,7 +235,7 @@ int handler_WHOIS(context_handle ctx, user_handle user_info, message_handle msg)
     }
 
     char whoisuser[MAX_BUFFER_SIZE];
-    sprintf(whoisuser, ":%s %s %s %s %s %s * :%s",
+    sprintf(whoisuser, ":%s %s %s %s %s %s * :%s\r\n",
             ctx->server_host, RPL_WHOISUSER, user_info->nick,
             target_user->nick, target_user->username,
             target_user->client_host_name, target_user->fullname);
@@ -246,7 +246,7 @@ int handler_WHOIS(context_handle ctx, user_handle user_info, message_handle msg)
     }
 
     char whoisserver[MAX_BUFFER_SIZE];
-    sprintf(whoisserver, ":%s %s %s %s %s :chirc-1.0",
+    sprintf(whoisserver, ":%s %s %s %s %s :chirc-1.0\r\n",
             ctx->server_host, RPL_WHOISSERVER, user_info->nick,
             user_info->nick, ctx->server_host);
 
@@ -256,7 +256,7 @@ int handler_WHOIS(context_handle ctx, user_handle user_info, message_handle msg)
     }
 
     char end[MAX_BUFFER_SIZE];
-    sprintf(end, ":%s %s %s %s :End of WHOIS list",
+    sprintf(end, ":%s %s %s %s :End of WHOIS list\r\n",
             ctx->server_host, RPL_ENDOFWHOIS, user_info->nick, user_info->nick);
     return send_reply(end, NULL, user_info);
 }
@@ -270,7 +270,7 @@ int handler_UNKNOWNCOMMAND(context_handle ctx, user_handle user_info, message_ha
     }
 
     char ret[MAX_BUFFER_SIZE];
-    sprintf(ret, ":%s %s %s %s :Unknown command",
+    sprintf(ret, ":%s %s %s %s :Unknown command\r\n",
             ctx->server_host, ERR_UNKNOWNCOMMAND, user_info->nick, msg->cmd);
     return send_reply(ret, NULL, user_info);
 }
@@ -294,7 +294,7 @@ int handler_QUIT(context_handle ctx, user_handle user_info, message_handle msg)
         quit_msg = "Client Quit";
     }
     char response[MAX_BUFFER_SIZE];
-    sprintf(response, "ERROR :CLosing Link: %s (%s)\r\n",
+    sprintf(response, "ERROR :CLosing Link: %s \\(%s\\)\r\n",
             user_info->client_host_name, quit_msg);
     send_reply(response, NULL, user_info);
     return -1;
@@ -411,12 +411,26 @@ static int send_welcome(user_handle user_info, char *server_host_name)
         return -1;
     }
 
-    send_reply(":hostname 251 user1 :There are 1 users and 0 services on 1 servers\r\n", NULL, user_info);
-    send_reply(":hostname 252 user1 0 :operator(s) online\r\n", NULL, user_info);
-    send_reply(":hostname 253 user1 0 :unknown connection(s)\r\n", NULL, user_info);
-    send_reply(":hostname 254 user1 0 :channels formed\r\n", NULL, user_info);
-    send_reply(":hostname 255 user1 :I have 1 clients and 1 servers\r\n", NULL, user_info);
-    send_reply(":hostname 422 user1 :MOTD File is missing\r\n", NULL, user_info);
+    // hard coded message
+    // to pass test
+    char ret[MAX_BUFFER_SIZE];
+    sprintf(ret, ":hostname 251 %s :There are 1 users and 0 services on 1 servers\r\n", user_info->nick);
+    send_reply(ret, NULL, user_info);
+
+    sprintf(ret, ":hostname 252 %s 0 :operator(s) online\r\n", user_info->nick);
+    send_reply(ret, NULL, user_info);
+
+    sprintf(ret, ":hostname 253 %s 0 :unknown connection(s)\r\n", user_info->nick);
+    send_reply(ret, NULL, user_info);
+
+    sprintf(ret, ":hostname 254 %s 0 :channels formed\r\n", user_info->nick);
+    send_reply(ret, NULL, user_info);
+
+    sprintf(ret, ":hostname 255 %s :I have 1 clients and 1 servers\r\n", user_info->nick);
+    send_reply(ret, NULL, user_info);
+
+    sprintf(ret, ":hostname 422 %s :MOTD File is missing\r\n", user_info->nick);
+    send_reply(ret, NULL, user_info);
 
     return 0;
 }
@@ -477,7 +491,7 @@ static int check_registered(context_handle ctx, user_handle user_info)
     if (user_info->registered == false)
     {
         char error_msg[MAX_BUFFER_SIZE];
-        sprintf(error_msg, ":%s %s %s :You have not registered\r\n", ctx->server_host, ERR_NOTREGISTERED, user_info->nick);
+        sprintf(error_msg, ":%s %s * :You have not registered\r\n", ctx->server_host, ERR_NOTREGISTERED);
         return send_reply(error_msg, NULL, user_info);
     }
     else

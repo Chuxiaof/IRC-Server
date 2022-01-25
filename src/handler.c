@@ -289,7 +289,7 @@ int handler_QUIT(context_handle ctx, user_handle user_info, message_handle msg)
     quit_msg = msg->longlast ? msg->params[(msg->nparams) - 1] : "Client Quit";
     
     char response[MAX_BUFFER_SIZE];
-    sprintf(response, "ERROR :CLosing Link: %s \\(%s\\)\r\n",
+    sprintf(response, "ERROR :Closing Link: %s (%s)\r\n",
             user_info->client_host_name, quit_msg);
     send_reply(response, NULL, user_info);
     return -1;

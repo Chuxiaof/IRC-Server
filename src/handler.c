@@ -8,6 +8,7 @@
 #include "message.h"
 #include "log.h"
 #include "reply.h"
+#include "connection.h"
 
 #define MAX_BUFFER_SIZE 512
 
@@ -21,7 +22,7 @@ static int send_welcome(user_handle user_info, char *server_host_name);
 
 // For all the handlers, return -1 if there's an error, return 0 otherwise
 int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
-{
+{   
     if (msg->nparams < 1)
     {
         chilog(ERROR, "handler_NICK: no nickname given");
@@ -31,6 +32,8 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
                 ctx->server_host, ERR_NONICKNAMEGIVEN);
         return send_reply(ret, NULL, user_info);
     }
+
+    
 
     char *nick = msg->params[0];
 
@@ -45,9 +48,14 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
         return send_reply(ret, NULL, user_info);
     }
 
+    // labels this connection as a user connection
+    // ignore if it's already registered
+    modify_connection(ctx->connection_hash_table, user_info->client_fd, USER_CONNECTION);
+
     if (user_info->registered)
     {
         // change nick
+        // TODO: change relevant hashtable
         HASH_DEL(ctx->user_hash_table, user_info);
         user_info->nick = nick;
         HASH_ADD_KEYPTR(hh, ctx->user_hash_table, nick, strlen(nick), user_info);
@@ -58,6 +66,8 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
     if (can_register(user_info))
     {
         user_info->registered = true;
+        // labels this connection as a registered connection
+        modify_connection(ctx->connection_hash_table, user_info->client_fd, REGISTERED_CONNECTION);
         HASH_ADD_KEYPTR(hh, ctx->user_hash_table, nick, strlen(nick), user_info);
         send_welcome(user_info, ctx->server_host);
     }
@@ -92,11 +102,17 @@ int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
 
     user_info->username = msg->params[0];
     user_info->fullname = msg->params[msg->nparams - 1];
+
+    // labels this connection as a user connection
+    modify_connection(ctx->connection_hash_table, user_info->client_fd, USER_CONNECTION);
+
     if (can_register(user_info))
     {
         // add to ctx->user_table
         user_info->registered = true;
         HASH_ADD_KEYPTR(hh, ctx->user_hash_table, user_info->nick, strlen(user_info->nick), user_info);
+        // labels this connection as a registered connection
+        modify_connection(ctx->connection_hash_table, user_info->client_fd, REGISTERED_CONNECTION);
         // send welcome
         send_welcome(user_info, ctx->server_host);
     }
@@ -289,7 +305,7 @@ int handler_QUIT(context_handle ctx, user_handle user_info, message_handle msg)
     quit_msg = msg->longlast ? msg->params[(msg->nparams) - 1] : "Client Quit";
     
     char response[MAX_BUFFER_SIZE];
-    sprintf(response, "ERROR :CLosing Link: %s \\(%s\\)\r\n",
+    sprintf(response, "ERROR :Closing Link: %s (%s)\r\n",
             user_info->client_host_name, quit_msg);
     send_reply(response, NULL, user_info);
     return -1;
@@ -304,16 +320,31 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
         return ret;
     }
 
-    int num_user = HASH_COUNT(ctx->user_hash_table);
+     // get connections statistics for reply
+    int unknown_connections = 0;
+    int user_connections = 0;
+    int registered_connections = 0;
+    
+    connection_handle temp;
+    
+    for(temp = ctx->connection_hash_table; temp!= NULL; temp = temp->hh.next){
+        if(temp->state==0){
+            unknown_connections++;
+        }else if(temp->state==1){
+            user_connections++;
+        }else{
+            registered_connections++;
+        }
+    }
+
+    //TODO: change the parameters for op and channel
     char luser_client[MAX_BUFFER_SIZE];
     sprintf(luser_client, ":%s %s %s :There are %d users and %d services on %d servers\r\n",
-            ctx->server_host, RPL_LUSERCLIENT, user_info->nick, num_user, 0, 1);
+            ctx->server_host, RPL_LUSERCLIENT, user_info->nick, registered_connections, 0, 1);
     if (send_reply(luser_client, NULL, user_info) == -1)
     {
         return -1;
     }
-
-    // TODO: modify the %d parameters
 
     char luser_op[MAX_BUFFER_SIZE];
     sprintf(luser_op, ":%s %s %s %d :operator(s) online\r\n",
@@ -325,7 +356,7 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
 
     char luser_unknown[MAX_BUFFER_SIZE];
     sprintf(luser_unknown, ":%s %s %s %d :unknown connection(s)\r\n",
-            ctx->server_host, RPL_LUSERUNKNOWN, user_info->nick, 1);
+            ctx->server_host, RPL_LUSERUNKNOWN, user_info->nick, unknown_connections);
     if (send_reply(luser_unknown, NULL, user_info) == -1)
     {
         return -1;
@@ -341,11 +372,70 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
 
     char luser_me[MAX_BUFFER_SIZE];
     sprintf(luser_me, ":%s %s %s :I have %d clients and %d servers\r\n",
-            ctx->server_host, RPL_LUSERME, user_info->nick, 1, 0);
+            ctx->server_host, RPL_LUSERME, user_info->nick, user_connections, 0);
     if (send_reply(luser_me, NULL, user_info) == -1)
     {
         return -1;
     }
+
+    return 0;
+}
+
+int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg) {
+    int ret = check_insufficient_param(msg->nparams, 1, "JOIN", user_info, ctx);
+    if (ret == 1) {
+        chilog(INFO, "handler_JOIN: insufficient params");
+        return 0;
+    }
+    if (ret == -1) {
+        chilog(ERROR, "handler_USER: fail when sending ERR_NEEDMOREPARAMS");
+        return -1;
+    }
+
+    char *name = msg->params[0];
+    channel_handle channel = NULL;
+    HASH_FIND_STR(ctx->channel_hash_table, name, channel);
+    if (!channel) {
+        // need to create a new channel
+        channel = create_channel(name);
+        // add channel to ctx
+        HASH_ADD_KEYPTR(hh, ctx->channel_hash_table, name, strlen(name), channel);
+    }
+
+    // add user to current channel
+    // TODO, update when change nick
+    join_channel(channel, user_info);
+    
+    // send reply
+    // skip RPL_TOPIC
+    char reply[MAX_BUFFER_SIZE];
+    // :hostname 353 nick = #foobar :foobar1 foobar2 foobar3
+    // TODO
+    sprintf(reply, ":%s %s %s = %s :foobar1 foobar2 foobar3\r\n",
+        ctx->server_host, RPL_NAMREPLY, user_info->nick, name);
+    if (send_reply(reply, NULL, user_info) == -1)
+        return -1;
+    
+    // :hostname 366 nick #foobar :End of NAMES list
+    sprintf(reply, ":%s %s %s %s :End of NAMES list",
+        ctx->server_host, RPL_ENDOFNAMES, user_info->nick, name);
+    return send_reply(reply, NULL, user_info);
+}
+
+int handler_PART(context_handle ctx, user_handle user_info, message_handle msg) {
+    int ret = check_insufficient_param(msg->nparams, 1, "PART", user_info, ctx);
+    if (ret == 1) {
+        chilog(INFO, "handler_PART: insufficient params");
+        return 0;
+    }
+    if (ret == -1) {
+        chilog(ERROR, "handle_PART: fail when sending ERR_NEEDMOREPARAMS");
+        return -1;
+    }
+
+    // char *channel_name = msg->params[0];
+    // channel_handle channel = NULL;
+    // HASH_FIND_STR()
 
     return 0;
 }

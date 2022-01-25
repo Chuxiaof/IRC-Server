@@ -22,7 +22,8 @@ static struct handler_entry handler_entries[] = {
     {"PONG", handler_PONG},
     {"WHOIS", handler_WHOIS},
     {"QUIT", handler_QUIT},
-    {"LUSERS", handler_LUSERS}
+    {"LUSERS", handler_LUSERS},
+    {"JOIN", handler_JOIN}
 };
 
 int handlers_num = sizeof(handler_entries) / sizeof(struct handler_entry);
@@ -42,4 +43,5 @@ int process_cmd(context_handle ctx, user_handle user_info, message_handle msg)
         chilog(WARNING, "unsupported command");
         return handler_UNKNOWNCOMMAND(ctx, user_info, msg);
     }
+    return 0;
 }

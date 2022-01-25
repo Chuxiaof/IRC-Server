@@ -14,6 +14,9 @@ struct user_t
     // the socket of connection
     int client_fd;
     char *client_host_name;
+
+    // channels user is on
+    
     
     // makes this structure hashable
     UT_hash_handle hh; 

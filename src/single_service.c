@@ -51,8 +51,7 @@ void *service_single_client(void *args)
             if (c == '\n' && flag)
             {
                 // whenever we identify a complete command
-                sds command = sdsempty();
-                command = sdscpylen(command, buffer, ptr - 1);
+                sds command = sdscpylen(sdsempty(), buffer, ptr - 1);
                 // create a message
                 message_handle msg = malloc(sizeof(message_t));
                 // transform command into message

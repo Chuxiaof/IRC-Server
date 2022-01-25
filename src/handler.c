@@ -462,18 +462,18 @@ static int send_reply(char *str, message_handle msg, user_handle user_info)
         chilog(ERROR, "Illegal input args for send_reply: both str and msg are NULL!");
         exit(1);
     }
-    int len;
-    if (msg == NULL)
-    {
-        len = strlen(str);
-        if (sendall(user_info->client_fd, str, &len) == -1)
-        {
-            chilog(ERROR, "send error in sendall()!");
-            return -1;
-        }
+
+    if (str == NULL) {
+        str = (char *) malloc(MAX_BUFFER_SIZE);
+        message_to_string(msg, str);
     }
-    // Todo: using msg instead of str
-    // return -1 if there's a send error
+
+    int len = strlen(str);
+    if (sendall(user_info->client_fd, str, &len) == -1)
+    {
+        chilog(ERROR, "send error in sendall()!");
+        return -1;
+    }
 
     return 0;
 }

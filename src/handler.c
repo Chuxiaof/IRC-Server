@@ -286,14 +286,8 @@ int handler_QUIT(context_handle ctx, user_handle user_info, message_handle msg)
     }
 
     char *quit_msg;
-    if (msg->longlast == true)
-    {
-        quit_msg = msg->params[(msg->nparams) - 1];
-    }
-    else
-    {
-        quit_msg = "Client Quit";
-    }
+    quit_msg = msg->longlast ? msg->params[(msg->nparams) - 1] : "Client Quit";
+    
     char response[MAX_BUFFER_SIZE];
     sprintf(response, "ERROR :CLosing Link: %s \\(%s\\)\r\n",
             user_info->client_host_name, quit_msg);
@@ -491,8 +485,9 @@ static int check_registered(context_handle ctx, user_handle user_info)
 {
     if (user_info->registered == false)
     {
+        char *nick = user_info->nick ? user_info->nick : "*";
         char error_msg[MAX_BUFFER_SIZE];
-        sprintf(error_msg, ":%s %s * :You have not registered\r\n", ctx->server_host, ERR_NOTREGISTERED);
+        sprintf(error_msg, ":%s %s %s :You have not registered\r\n", ctx->server_host, ERR_NOTREGISTERED, nick);
         return send_reply(error_msg, NULL, user_info);
     }
     else

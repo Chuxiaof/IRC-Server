@@ -67,12 +67,13 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
 
 int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
 {
-    if (user_info->registered == true)
+    if (user_info->registered)
     {
         char error_msg[MAX_BUFFER_SIZE];
         sprintf(error_msg, ":%s %s %s :Unauthorized command (already registered)\r\n", ctx->server_host, ERR_ALREADYREGISTRED, user_info->nick);
         return send_reply(error_msg, NULL, user_info);
     }
+
     // return value of check_insufficient_param()
     // 1: insufficient param and send reply message successfully
     // 0: sufficient or more param
@@ -90,7 +91,7 @@ int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
     }
 
     user_info->username = msg->params[0];
-    user_info->fullname = msg->params[3];
+    user_info->fullname = msg->params[msg->nparams - 1];
     if (can_register(user_info))
     {
         // add to ctx->user_table
@@ -174,7 +175,7 @@ int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg
     }
 
     char ret[MAX_BUFFER_SIZE];
-    sprintf(ret, ":%s!%s@%s PRIVMSG %s :%s\r\n",
+    sprintf(ret, ":%s!%s@%s NOTICE %s :%s\r\n",
             user_info->nick, user_info->username, user_info->client_host_name,
             target_nick, msg->params[msg->nparams - 1]);
     chilog(INFO, "%s sends an message to %s", user_info->nick, target_user->nick);

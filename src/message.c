@@ -19,8 +19,9 @@ int message_from_string(message_handle msg, char *s) {
 
     // first split the string by :
     int count_1 = 0;
-    sds *split = sdssplitlen(s, sdslen(s), ":", 1, &count_1);
-
+    sds *split = sdssplitlen(s, sdslen(s), " :", 2, &count_1);
+    
+    
     // then split the first part by " "
     int count_2 = 0;
     sds before_colon = split[0];
@@ -32,7 +33,7 @@ int message_from_string(message_handle msg, char *s) {
         msg->params[i] = tokens[i + 1];
 
     if (count_1 > 1) {
-        sdsrange(s, sdslen(before_colon) + 1, sdslen(s) - 1);
+        sdsrange(s, sdslen(before_colon) + 2, sdslen(s) - 1);
         msg->params[msg->nparams++] = s;
         msg->longlast = true;
     } else {

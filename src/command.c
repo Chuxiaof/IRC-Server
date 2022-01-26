@@ -23,7 +23,8 @@ static struct handler_entry handler_entries[] = {
     {"WHOIS", handler_WHOIS},
     {"QUIT", handler_QUIT},
     {"LUSERS", handler_LUSERS},
-    {"JOIN", handler_JOIN}
+    {"JOIN", handler_JOIN},
+    {"PART", handler_PART}
 };
 
 int handlers_num = sizeof(handler_entries) / sizeof(struct handler_entry);

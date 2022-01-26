@@ -28,6 +28,8 @@ typedef user_t * user_handle;
 
 user_handle create_user();
 
+void delete_user(user_handle * hash_table, user_handle user_info);
+
 void destroy_user(user_handle user);
 
 #endif

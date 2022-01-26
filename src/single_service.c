@@ -36,6 +36,9 @@ void *service_single_client(void *args)
             pthread_mutex_lock(&ctx->lock_connection_table);
             delete_connection(&(ctx->connection_hash_table), user_info->client_fd);
             pthread_mutex_unlock(&ctx->lock_connection_table);
+            pthread_mutex_lock(&ctx->lock_user_table);
+            delete_user(&(ctx->user_hash_table), user_info);
+            pthread_mutex_unlock(&ctx->lock_user_table);
             pthread_exit(NULL);
         }
 
@@ -46,6 +49,9 @@ void *service_single_client(void *args)
             pthread_mutex_lock(&ctx->lock_connection_table);
             delete_connection(&(ctx->connection_hash_table), user_info->client_fd);
             pthread_mutex_unlock(&ctx->lock_connection_table);
+            pthread_mutex_lock(&ctx->lock_user_table);
+            delete_user(&(ctx->user_hash_table), user_info);
+            pthread_mutex_unlock(&ctx->lock_user_table);
             pthread_exit(NULL);
         }
 
@@ -63,11 +69,26 @@ void *service_single_client(void *args)
                 // transform command into message
                 message_from_string(msg, command);
                 // process the message
-                if(process_cmd(ctx, user_info, msg)==-1){
-                    //if there's an error during processing this command, then kill this thread
+                if (process_cmd(ctx, user_info, msg) == -1)
+                {
+                    // if there's an error during processing this command, then kill this thread
                     close(user_info->client_fd);
                     free(wa);
-                    //TODO: delete USER from hash table
+
+                    // Delete this user from hash table
+                    //  if(user_info->nick){
+                    //      user_handle temp;
+                    //      pthread_mutex_lock(&ctx->lock_user_table);
+                    //      HASH_FIND_STR(ctx->user_hash_table, user_info->nick, temp);
+                    //      if(temp){
+                    //          HASH_DEL(ctx->user_hash_table, temp);
+                    //      }
+                    //      pthread_mutex_unlock(&ctx->lock_user_table);
+                    //  }
+                    pthread_mutex_lock(&ctx->lock_user_table);
+                    delete_user(&(ctx->user_hash_table), user_info);
+                    pthread_mutex_unlock(&ctx->lock_user_table);
+
                     pthread_mutex_lock(&ctx->lock_connection_table);
                     delete_connection(&(ctx->connection_hash_table), user_info->client_fd);
                     pthread_mutex_unlock(&ctx->lock_connection_table);

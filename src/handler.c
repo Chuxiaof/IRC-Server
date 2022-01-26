@@ -22,9 +22,11 @@ static int sendall(int s, char *buf, int *len);
 static int send_reply(char *str, message_handle msg, user_handle user_info);
 static int send_welcome(user_handle user_info, char *server_host_name);
 
+int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg);
+
 // For all the handlers, return -1 if there's an error, return 0 otherwise
 int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
-{   
+{
     if (msg->nparams < 1)
     {
         chilog(ERROR, "handler_NICK: no nickname given");
@@ -77,6 +79,7 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
         pthread_mutex_unlock(&ctx->lock_connection_table);
         HASH_ADD_KEYPTR(hh, ctx->user_hash_table, nick, strlen(nick), user_info);
         send_welcome(user_info, ctx->server_host);
+        handler_LUSERS(ctx, user_info, msg);
     }
 
     pthread_mutex_unlock(&ctx->lock_user_table);
@@ -130,6 +133,7 @@ int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
         pthread_mutex_unlock(&ctx->lock_connection_table);
         // send welcome
         send_welcome(user_info, ctx->server_host);
+        handler_LUSERS(ctx, user_info, msg);
     }
     return 0;
 }
@@ -327,7 +331,7 @@ int handler_QUIT(context_handle ctx, user_handle user_info, message_handle msg)
 
     char *quit_msg;
     quit_msg = msg->longlast ? msg->params[(msg->nparams) - 1] : "Client Quit";
-    
+
     char response[MAX_BUFFER_SIZE];
     sprintf(response, "ERROR :Closing Link: %s (%s)\r\n",
             user_info->client_host_name, quit_msg);
@@ -344,26 +348,33 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
         return ret;
     }
 
-     // get connections statistics for reply
+    // get connections statistics for reply
     int unknown_connections = 0;
     int user_connections = 0;
     int registered_connections = 0;
-    
+
     connection_handle temp;
-    
+
     pthread_mutex_lock(&ctx->lock_connection_table);
-    for(temp = ctx->connection_hash_table; temp!= NULL; temp = temp->hh.next){
-        if(temp->state==0){
+    for (temp = ctx->connection_hash_table; temp != NULL; temp = temp->hh.next)
+    {
+        if (temp->state == 0)
+        {
             unknown_connections++;
-        }else if(temp->state==1){
+        }
+        else if (temp->state == 1)
+        {
             user_connections++;
-        }else{
+        }
+        else
+        {
             registered_connections++;
+            user_connections++;
         }
     }
     pthread_mutex_unlock(&ctx->lock_connection_table);
 
-    //TODO: change the parameters for op and channel
+    // TODO: change the parameters for op and channel
     char luser_client[MAX_BUFFER_SIZE];
     sprintf(luser_client, ":%s %s %s :There are %d users and %d services on %d servers\r\n",
             ctx->server_host, RPL_LUSERCLIENT, user_info->nick, registered_connections, 0, 1);
@@ -374,7 +385,7 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
 
     char luser_op[MAX_BUFFER_SIZE];
     sprintf(luser_op, ":%s %s %s %d :operator(s) online\r\n",
-            ctx->server_host, RPL_LUSEROP, user_info->nick, 1);
+            ctx->server_host, RPL_LUSEROP, user_info->nick, 0);
     if (send_reply(luser_op, NULL, user_info) == -1)
     {
         return -1;
@@ -390,7 +401,7 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
 
     char luser_channels[MAX_BUFFER_SIZE];
     sprintf(luser_channels, ":%s %s %s %d :channels formed\r\n",
-            ctx->server_host, RPL_LUSERCHANNELS, user_info->nick, 1);
+            ctx->server_host, RPL_LUSERCHANNELS, user_info->nick, 0);
     if (send_reply(luser_channels, NULL, user_info) == -1)
     {
         return -1;
@@ -404,16 +415,26 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
         return -1;
     }
 
+    char nomotd[MAX_BUFFER_SIZE];
+    sprintf(nomotd, ":%s %s %s :MOTD File is missing\r\n", ctx->server_host, ERR_NOMOTD, user_info->nick);
+    if (send_reply(nomotd, NULL, user_info) == -1)
+    {
+        return -1;
+    }
+
     return 0;
 }
 
-int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg) {
+int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
+{
     int ret = check_insufficient_param(msg->nparams, 1, "JOIN", user_info, ctx);
-    if (ret == 1) {
+    if (ret == 1)
+    {
         chilog(INFO, "handler_JOIN: insufficient params");
         return 0;
     }
-    if (ret == -1) {
+    if (ret == -1)
+    {
         chilog(ERROR, "handler_USER: fail when sending ERR_NEEDMOREPARAMS");
         return -1;
     }
@@ -424,7 +445,8 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg) 
     pthread_mutex_lock(&ctx->lock_channel_table);
     HASH_FIND_STR(ctx->channel_hash_table, name, channel);
 
-    if (!channel) {
+    if (!channel)
+    {
         // need to create a new channel
         channel = create_channel(name);
         // add channel to ctx
@@ -443,7 +465,7 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg) 
     // add user to current channel
     // TODO, update when change nick
     join_channel(channel, user_info);
-    
+
     // send reply
     char reply[MAX_BUFFER_SIZE];
     // notify all users
@@ -473,17 +495,20 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg) 
     
     // :hostname 366 nick #foobar :End of NAMES list
     sprintf(reply, ":%s %s %s %s :End of NAMES list\r\n",
-        ctx->server_host, RPL_ENDOFNAMES, user_info->nick, name);
+            ctx->server_host, RPL_ENDOFNAMES, user_info->nick, name);
     return send_reply(reply, NULL, user_info);
 }
 
-int handler_PART(context_handle ctx, user_handle user_info, message_handle msg) {
+int handler_PART(context_handle ctx, user_handle user_info, message_handle msg)
+{
     int ret = check_insufficient_param(msg->nparams, 1, "PART", user_info, ctx);
-    if (ret == 1) {
+    if (ret == 1)
+    {
         chilog(INFO, "handler_PART: insufficient params");
         return 0;
     }
-    if (ret == -1) {
+    if (ret == -1)
+    {
         chilog(ERROR, "handle_PART: fail when sending ERR_NEEDMOREPARAMS");
         return -1;
     }
@@ -602,24 +627,24 @@ static int send_welcome(user_handle user_info, char *server_host_name)
 
     // hard coded message
     // to pass test
-    char ret[MAX_BUFFER_SIZE];
-    sprintf(ret, ":hostname 251 %s :There are 1 users and 0 services on 1 servers\r\n", user_info->nick);
-    send_reply(ret, NULL, user_info);
+    // char ret[MAX_BUFFER_SIZE];
+    // sprintf(ret, ":hostname 251 %s :There are 1 users and 0 services on 1 servers\r\n", user_info->nick);
+    // send_reply(ret, NULL, user_info);
 
-    sprintf(ret, ":hostname 252 %s 0 :operator(s) online\r\n", user_info->nick);
-    send_reply(ret, NULL, user_info);
+    // sprintf(ret, ":hostname 252 %s 0 :operator(s) online\r\n", user_info->nick);
+    // send_reply(ret, NULL, user_info);
 
-    sprintf(ret, ":hostname 253 %s 0 :unknown connection(s)\r\n", user_info->nick);
-    send_reply(ret, NULL, user_info);
+    // sprintf(ret, ":hostname 253 %s 0 :unknown connection(s)\r\n", user_info->nick);
+    // send_reply(ret, NULL, user_info);
 
-    sprintf(ret, ":hostname 254 %s 0 :channels formed\r\n", user_info->nick);
-    send_reply(ret, NULL, user_info);
+    // sprintf(ret, ":hostname 254 %s 0 :channels formed\r\n", user_info->nick);
+    // send_reply(ret, NULL, user_info);
 
-    sprintf(ret, ":hostname 255 %s :I have 1 clients and 1 servers\r\n", user_info->nick);
-    send_reply(ret, NULL, user_info);
+    // sprintf(ret, ":hostname 255 %s :I have 1 clients and 1 servers\r\n", user_info->nick);
+    // send_reply(ret, NULL, user_info);
 
-    sprintf(ret, ":hostname 422 %s :MOTD File is missing\r\n", user_info->nick);
-    send_reply(ret, NULL, user_info);
+    // sprintf(ret, ":hostname 422 %s :MOTD File is missing\r\n", user_info->nick);
+    // send_reply(ret, NULL, user_info);
 
     return 0;
 }
@@ -657,8 +682,9 @@ static int send_reply(char *str, message_handle msg, user_handle user_info)
         exit(1);
     }
 
-    if (str == NULL) {
-        str = (char *) malloc(MAX_BUFFER_SIZE);
+    if (str == NULL)
+    {
+        str = (char *)malloc(MAX_BUFFER_SIZE);
         message_to_string(msg, str);
     }
 

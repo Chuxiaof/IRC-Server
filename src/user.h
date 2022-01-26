@@ -10,7 +10,7 @@ struct user_t
     char *username;
     char *fullname;
     bool registered;
-
+    bool is_irc_operator;
     // the socket of connection
     int client_fd;
     char *client_host_name;

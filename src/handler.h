@@ -31,4 +31,8 @@ int handler_PART(context_handle ctx, user_handle user_info, message_handle msg);
 
 int handler_LIST(context_handle ctx, user_handle user_info, message_handle msg);
 
+int handler_OPER(context_handle ctx, user_handle user_info, message_handle msg);
+
+int handler_MODE(context_handle ctx, user_handle user_info, message_handle msg);
+
 #endif

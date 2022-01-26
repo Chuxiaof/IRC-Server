@@ -10,6 +10,8 @@
 struct context_t {
     char *server_host;
 
+    char * password;
+
     user_handle user_hash_table;
     pthread_mutex_t lock_user_table;
 

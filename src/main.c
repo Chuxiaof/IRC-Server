@@ -209,6 +209,7 @@ int main(int argc, char *argv[])
 
     // create global context
     context_handle ctx = (context_handle) malloc(sizeof(context_t));
+    ctx->password = passwd;
     ctx->user_hash_table = NULL;
     ctx->connection_hash_table = NULL;
     ctx->channel_hash_table = NULL;

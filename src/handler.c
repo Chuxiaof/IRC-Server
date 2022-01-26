@@ -441,7 +441,8 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
 
     char *name = msg->params[0];
     channel_handle channel = NULL;
-    
+    bool is_creator = false;
+
     pthread_mutex_lock(&ctx->lock_channel_table);
     HASH_FIND_STR(ctx->channel_hash_table, name, channel);
 
@@ -452,47 +453,57 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
         // add channel to ctx
         HASH_ADD_KEYPTR(hh, ctx->channel_hash_table, name, strlen(name), channel);
         chilog(INFO, "successfully created new channel %s", name);
+        is_creator = true;
     }
-
     pthread_mutex_unlock(&ctx->lock_channel_table);
-
-    // already on channel
-    if (already_on_channel(channel, user_info->nick)) {
-        chilog(INFO, "handler_JOIN: user %s already on channel %s", user_info->nick, name);
-        return 0;
-    }
 
     // add user to current channel
     // TODO, update when change nick
-    join_channel(channel, user_info);
+    int rv = join_channel(channel, user_info->nick, is_creator);
 
     // send reply
     char reply[MAX_BUFFER_SIZE];
-    // notify all users
-    // :nick!user@10.150.42.58 JOIN #test
-    sprintf(reply, ":%s!%s@%s JOIN %s\r\n",
-        user_info->nick, user_info->username, ctx->server_host, name);
-
-    pthread_mutex_lock(&channel->lock_channel_user);
-    for (user_handle usr = channel->user_table; usr != NULL; usr = usr->hh.next) {
-        if (send_reply(reply, NULL, usr) == -1) {
-            pthread_mutex_unlock(&channel->lock_channel_user);
-            return -1;
+    switch (rv)
+    {
+    case 0:
+        chilog(INFO, "user %s joined channel %s", user_info->nick, name);
+        // notify all users :nick!user@10.150.42.58 JOIN #test
+        sprintf(reply, ":%s!%s@%s JOIN %s\r\n",
+                user_info->nick, user_info->username, user_info->client_host_name, name);
+        
+        int count = 0;
+        char **member_nicks = member_nicks_arr(channel, &count);
+        for (int i = 0; i < count; i++) {
+            // TODO mutex, extract common functions
+            user_handle usr = NULL;
+            HASH_FIND_STR(ctx->user_hash_table, member_nicks[i], usr);
+            if (usr && send_reply(reply, NULL, usr) == -1) {
+                free(member_nicks);
+                return -1;
+            }
         }
-    }
-    pthread_mutex_unlock(&channel->lock_channel_user);
-    
-    // skip RPL_TOPIC
-    // :frost 353 nick = test :@nick
-    sds nicks = all_user_nicks(channel);
-    sprintf(reply, ":%s %s %s = %s :@%s\r\n",
-        ctx->server_host, RPL_NAMREPLY, user_info->nick, name, nicks);
-    if (send_reply(reply, NULL, user_info) == -1) {
-        sdsfree(nicks);
+        free(member_nicks);
+        break;
+    case 1:
+        chilog(INFO, "handler_JOIN: ignored, user %s already on channel %s", user_info->nick, channel->name);
+        return 0;
+    default:
+        chilog(CRITICAL, "handler_JOIN: unanticipated error");
         return -1;
     }
-    sdsfree(nicks);
-    
+
+    // skip RPL_TOPIC
+    // :frost 353 nick = test :@nick
+    sds all_nicks = member_nicks_str(channel);
+    sprintf(reply, ":%s %s %s = %s :@%s\r\n",
+            ctx->server_host, RPL_NAMREPLY, user_info->nick, name, all_nicks);
+    if (send_reply(reply, NULL, user_info) == -1)
+    {
+        sdsfree(all_nicks);
+        return -1;
+    }
+    sdsfree(all_nicks);
+
     // :hostname 366 nick #foobar :End of NAMES list
     sprintf(reply, ":%s %s %s %s :End of NAMES list\r\n",
             ctx->server_host, RPL_ENDOFNAMES, user_info->nick, name);
@@ -515,51 +526,61 @@ int handler_PART(context_handle ctx, user_handle user_info, message_handle msg)
 
     char *channel_name = msg->params[0];
     channel_handle channel = NULL;
-    
+
     pthread_mutex_lock(&ctx->lock_channel_table);
     HASH_FIND_STR(ctx->channel_hash_table, channel_name, channel);
     pthread_mutex_unlock(&ctx->lock_channel_table);
 
-    if (!channel) {
-        // ERR_NOSUCHCHANNEL
-        char reply[MAX_BUFFER_SIZE];
-        sprintf(reply, ":%s %s %s %s :No such channel\r\n",
-            ctx->server_host, ERR_NOSUCHCHANNEL, user_info->nick, channel_name);
-        return send_reply(reply, NULL, user_info);
-    }
-
-    if (!already_on_channel(channel, user_info->nick)) {
-        // ERR_NOTONCHANNEL
-        char reply[MAX_BUFFER_SIZE];
-        sprintf(reply, ":%s %s %s %s :You're not on that channel\r\n",
-            ctx->server_host, ERR_NOTONCHANNEL, user_info->nick, channel_name);
-        return send_reply(reply, NULL, user_info);
-    }
-
-    // send reply, notify all users
-    // :nick1!user1@38.124.64.205 PART test :bye
     char reply[MAX_BUFFER_SIZE];
-    if (msg->longlast) {
-        sprintf(reply, ":%s!%s@%s PART %s :%s\r\n",
-            user_info->nick, user_info->username, user_info->client_host_name, channel_name, msg->params[1]);
-    } else {
-        sprintf(reply, ":%s!%s@%s PART %s\r\n",
-            user_info->nick, user_info->username, user_info->client_host_name, channel_name);
+    if (!channel)
+    {
+        // ERR_NOSUCHCHANNEL
+        sprintf(reply, ":%s %s %s %s :No such channel\r\n",
+                ctx->server_host, ERR_NOSUCHCHANNEL, user_info->nick, channel_name);
+        return send_reply(reply, NULL, user_info);
     }
 
-    pthread_mutex_lock(&channel->lock_channel_user);
-    for (user_handle usr = channel->user_table; usr != NULL; usr = usr->hh.next) {
-        if (send_reply(reply, NULL, usr) == -1) {
-            pthread_mutex_unlock(&channel->lock_channel_user);
+    int rv = leave_channel(channel, user_info->nick);
+    switch (rv) {
+    case 1:
+        sprintf(reply, ":%s %s %s %s :You're not on that channel\r\n",
+                ctx->server_host, ERR_NOTONCHANNEL, user_info->nick, channel_name);
+        return send_reply(reply, NULL, user_info); 
+    case 0:
+    case 2:
+        chilog(INFO, "handler_PART: notify all members: user %s leave channel %s", user_info->nick, channel_name);
+        if (msg->longlast)
+            sprintf(reply, ":%s!%s@%s PART %s :%s\r\n",
+                user_info->nick, user_info->username, user_info->client_host_name, channel_name, msg->params[1]);
+        else
+            sprintf(reply, ":%s!%s@%s PART %s\r\n",
+                user_info->nick, user_info->username, user_info->client_host_name, channel_name);
+        // notify myself 
+        if (send_reply(reply, NULL, user_info) == -1)
             return -1;
+        // notify remaining members
+        int count = 0;
+        char **member_nicks = member_nicks_arr(channel, &count);
+        for (int i = 0; i < count; i++) {
+            // TODO mutex, extract common functions
+            user_handle usr = NULL;
+            HASH_FIND_STR(ctx->user_hash_table, member_nicks[i], usr);
+            if (usr && send_reply(reply, NULL, usr) == -1) {
+                free(member_nicks);
+                return -1;
+            }
         }
+        free(member_nicks);
+        break;  
+    default:
+        chilog(CRITICAL, "handler_PART: unanticipated error");
+        return -1;
     }
-    pthread_mutex_unlock(&channel->lock_channel_user);
 
-    // remove user from channel
-    leave_channel(channel, user_info);
-    if (empty_channel(channel)) {
+    if (rv == 2)
+    {
         // delete this channel
+        chilog(INFO, "delete channel %s from context", channel_name);
         pthread_mutex_lock(&ctx->lock_channel_table);
         HASH_DEL(ctx->channel_hash_table, channel);
         pthread_mutex_unlock(&ctx->lock_channel_table);
@@ -568,27 +589,34 @@ int handler_PART(context_handle ctx, user_handle user_info, message_handle msg)
     return 0;
 }
 
-int handler_LIST(context_handle ctx, user_handle user_info, message_handle msg) {
+int handler_LIST(context_handle ctx, user_handle user_info, message_handle msg)
+{
     char reply[MAX_BUFFER_SIZE];
 
-    if (msg->nparams == 1) {
+    if (msg->nparams == 1)
+    {
         char *name = msg->params[0];
         channel_handle channel = NULL;
         pthread_mutex_lock(&ctx->lock_channel_table);
         HASH_FIND_STR(ctx->channel_hash_table, name, channel);
         pthread_mutex_unlock(&ctx->lock_channel_table);
-        if (channel) {
+        if (channel)
+        {
             sprintf(reply, ":%s %s %s %s %u :\r\n",
-                ctx->server_host, RPL_LIST, user_info->nick, channel->name, channel_user_count(channel));
+                    ctx->server_host, RPL_LIST, user_info->nick, channel->name, channel_member_count(channel));
             if (send_reply(reply, NULL, user_info) == -1)
                 return -1;
         }
-    } else {
+    }
+    else
+    {
         pthread_mutex_lock(&ctx->lock_channel_table);
-        for (channel_handle cha = ctx->channel_hash_table; cha != NULL; cha = cha->hh.next) {
+        for (channel_handle cha = ctx->channel_hash_table; cha != NULL; cha = cha->hh.next)
+        {
             sprintf(reply, ":%s %s %s %s %u :\r\n",
-                ctx->server_host, RPL_LIST, user_info->nick, cha->name, channel_user_count(cha));
-            if (send_reply(reply, NULL, user_info) == -1) {
+                    ctx->server_host, RPL_LIST, user_info->nick, cha->name, channel_member_count(cha));
+            if (send_reply(reply, NULL, user_info) == -1)
+            {
                 pthread_mutex_unlock(&ctx->lock_channel_table);
                 return -1;
             }
@@ -597,8 +625,75 @@ int handler_LIST(context_handle ctx, user_handle user_info, message_handle msg) 
     }
 
     sprintf(reply, ":%s %s %s :End of LIST\r\n",
-        ctx->server_host, RPL_LISTEND, user_info->nick);
+            ctx->server_host, RPL_LISTEND, user_info->nick);
     return send_reply(reply, NULL, user_info);
+}
+
+int handler_OPER(context_handle ctx, user_handle user_info, message_handle msg)
+{
+    int ret = check_insufficient_param(msg->nparams, 2, "OPER", user_info, ctx);
+    if (ret == 1)
+    {
+        chilog(INFO, "handler_JOIN: insufficient params");
+        return 0;
+    }
+    if (ret == -1)
+    {
+        chilog(ERROR, "handler_USER: fail when sending ERR_NEEDMOREPARAMS");
+        return -1;
+    }
+
+    char *given_pw = msg->params[1];
+    if (strcmp(ctx->password, given_pw) != 0)
+    {
+        char error_msg[MAX_BUFFER_SIZE];
+        sprintf(error_msg, ":%s %s %s :Password incorrect\r\n", ctx->server_host, ERR_PASSWDMISMATCH, user_info->nick);
+        return send_reply(error_msg, NULL, user_info);
+    }
+    
+    user_info->is_irc_operator = true;
+    char reply[MAX_BUFFER_SIZE];
+    sprintf(reply, ":%s %s %s :You are now an IRC operator\r\n", ctx->server_host, RPL_YOUREOPER, user_info->nick);
+    return send_reply(reply, NULL, user_info);
+    
+}
+
+int handler_MODE(context_handle ctx, user_handle user_info, message_handle msg){
+    channel_handle channel = NULL;
+    char * channel_name = msg->params[0];
+    pthread_mutex_lock(&ctx->lock_channel_table);
+    HASH_FIND_STR(ctx->channel_hash_table, channel_name, channel);
+    pthread_mutex_unlock(&ctx->lock_channel_table);
+    
+    if(!channel){
+        char error_msg[MAX_BUFFER_SIZE];
+        sprintf(error_msg, ":%s %s %s %s :No such channel\r\n", ctx->server_host, ERR_NOSUCHCHANNEL, user_info->nick, channel_name);
+        return send_reply(error_msg, NULL, user_info);
+    }
+    
+    char * mode_name = msg->params[1];
+    if(strcmp(mode_name, "-o")!=0 && strcmp(mode_name, "+o")!=0){
+        char error_msg[MAX_BUFFER_SIZE];
+        sprintf(error_msg, ":%s %s %s %s :is unknown mode char to me for %s\r\n", ctx->server_host, ERR_UNKNOWNMODE, user_info->nick, mode_name, channel_name);
+        return send_reply(error_msg, NULL, user_info);
+    }
+
+    char * target_nick = msg->params[2];
+    if(!already_on_channel(channel, target_nick)){
+        char error_msg[MAX_BUFFER_SIZE];
+        sprintf(error_msg, ":%s %s %s %s %s :They aren't on that channel\r\n", ctx->server_host, ERR_USERNOTINCHANNEL, user_info->nick, target_nick, channel_name);
+        return send_reply(error_msg, NULL, user_info);
+    }
+
+    if(is_channel_operator(channel, user_info->nick)||user_info->is_irc_operator){
+        return update_member_mode(channel, target_nick, mode_name);
+    }else{
+        char error_msg[MAX_BUFFER_SIZE];
+        sprintf(error_msg, ":%s %s %s %s :You're not channel operator\r\n", ctx->server_host, ERR_CHANOPRIVSNEEDED, user_info->nick, channel_name);
+        return send_reply(error_msg, NULL, user_info);
+    }
+
+    return 0;
 }
 
 static int check_insufficient_param(int have, int target, char *cmd, user_handle user_info, context_handle ctx)

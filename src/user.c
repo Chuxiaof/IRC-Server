@@ -20,6 +20,7 @@ user_handle create_user()
     user->username = NULL;
     user->username = NULL;
     user->registered = false;
+    user->is_irc_operator = false;
     return user;
 }
 

@@ -440,7 +440,7 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg) 
     // send reply
     char reply[MAX_BUFFER_SIZE];
     // :nick!user@10.150.42.58 JOIN #test
-    sprintf(reply, ":%s!%s@%s JOIN %s",
+    sprintf(reply, ":%s!%s@%s JOIN %s\r\n",
         user_info->nick, user_info->username, ctx->server_host, name);
     if (send_reply(reply, NULL, user_info) == -1)
         return -1;
@@ -454,7 +454,7 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg) 
         return -1;
     
     // :hostname 366 nick #foobar :End of NAMES list
-    sprintf(reply, ":%s %s %s %s :End of NAMES list",
+    sprintf(reply, ":%s %s %s %s :End of NAMES list\r\n",
         ctx->server_host, RPL_ENDOFNAMES, user_info->nick, name);
     return send_reply(reply, NULL, user_info);
 }

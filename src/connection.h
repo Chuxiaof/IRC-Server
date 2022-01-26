@@ -18,8 +18,8 @@ typedef connection_t * connection_handle;
 
 connection_handle create_connection(int socket_num);
 
-void modify_connection(connection_handle hash_table, int socket_num, int state);
+void modify_connection(connection_handle * hash_table, int socket_num, int state);
 
 //delete the connection corresponding to socket_num from hash table
 //and free the connection
-void delete_connection(connection_handle hash_table, int socket_num);
+void delete_connection(connection_handle * hash_table, int socket_num);

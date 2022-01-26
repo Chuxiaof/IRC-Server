@@ -152,10 +152,6 @@ int main(int argc, char *argv[])
     // socket
     int server_fd, client_fd;
 
-    // multi-thread
-    pthread_t worker_thread;
-    struct worker_args *wa;
-
     struct addrinfo hints, *res, *p;
     memset(&hints, 0, sizeof(struct addrinfo));
     hints.ai_family = AF_INET;
@@ -213,19 +209,23 @@ int main(int argc, char *argv[])
 
     // create global context
     context_handle ctx = (context_handle) malloc(sizeof(context_t));
-    user_t *users = NULL; // create the pointer to hash table, which stores users' info
-    ctx->user_hash_table = users;
+    ctx->user_hash_table = NULL;
+    ctx->connection_hash_table = NULL;
+    ctx->channel_hash_table = NULL;
+    pthread_mutex_init(&ctx->lock_user_table, NULL);
+    pthread_mutex_init(&ctx->lock_connection_table, NULL);
+    pthread_mutex_init(&ctx->lock_channel_table, NULL);
 
-    // create hash table to store connection info
-    connection_handle connections = NULL; // create the pointer to hash table, which stores connections' info
-    ctx->connection_hash_table = connections;
+    // multi-thread
+    pthread_t worker_thread;
+    struct worker_args *wa;
 
+    // TODO
     // get the hostname of server
     // char * server_host_name = malloc(sizeof(char)*HOST_NAME_LENGTH);
     // if((getnameinfo(p->ai_addr, p->ai_addrlen, server_host_name, HOST_NAME_LENGTH, NULL, 0, 0)!=0)){
     //     perror("getnameinfo error!");
     // }
-
     // get the hostname of server
     char *server_host_name = malloc(HOST_NAME_LENGTH);
     gethostname(server_host_name, HOST_NAME_LENGTH);
@@ -265,7 +265,9 @@ int main(int argc, char *argv[])
         //create a connection handle for each connection(thread)
         connection_handle connection_info = create_connection(client_fd);
         //add this connection_info into corresponding hash table
+        pthread_mutex_lock(&ctx->lock_connection_table);
         HASH_ADD_INT(ctx->connection_hash_table, socket_num, connection_info); 
+        pthread_mutex_unlock(&ctx->lock_connection_table);
 
         user_handle user_info = create_user(); // create a user_handle for each thread
         user_info->client_fd = client_fd;
@@ -287,7 +289,9 @@ int main(int argc, char *argv[])
         if (pthread_create(&worker_thread, NULL, service_single_client, wa) != 0)
         {
             perror("could not create a worker thread");
+            pthread_mutex_lock(&ctx->lock_connection_table);
             HASH_DEL(ctx->connection_hash_table, connection_info);
+            pthread_mutex_unlock(&ctx->lock_connection_table);
             free(connection_info);
             free(wa);
             free(ctx);

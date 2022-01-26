@@ -1,4 +1,5 @@
 #include "connection.h"
+
 #include "log.h"
 
 connection_handle create_connection(int socket_num){
@@ -8,13 +9,13 @@ connection_handle create_connection(int socket_num){
         exit(1);
     }
     res->socket_num = socket_num;
-    res->state = 0;
+    res->state = UNKNOWN_CONNECTION;
     return res;
 }
 
-void modify_connection(connection_handle hash_table, int socket_num, int state){
+void modify_connection(connection_handle * hash_table, int socket_num, int state){
     connection_handle connection;
-    HASH_FIND_INT(hash_table, &socket_num, connection);
+    HASH_FIND_INT(*hash_table, &socket_num, connection);
     if((state!= REGISTERED_CONNECTION) && (state != USER_CONNECTION)){
         chilog(ERROR, "false state info for connection");
         exit(1);
@@ -25,9 +26,9 @@ void modify_connection(connection_handle hash_table, int socket_num, int state){
     return;
 }
 
-void delete_connection(connection_handle hash_table, int socket_num){
+void delete_connection(connection_handle * hash_table, int socket_num){
     connection_handle connection;
-    HASH_FIND_INT(hash_table, &socket_num, connection);
-    HASH_DEL(hash_table, connection);
+    HASH_FIND_INT(*hash_table, &socket_num, connection);
+    HASH_DEL(*hash_table, connection);
     free(connection);
 }

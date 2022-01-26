@@ -2,6 +2,8 @@
 #include <sds.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <pthread.h>
+
 #include "handler.h"
 #include "user.h"
 #include "context.h"
@@ -33,11 +35,10 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
         return send_reply(ret, NULL, user_info);
     }
 
-    
-
     char *nick = msg->params[0];
 
     user_handle temp;
+    pthread_mutex_lock(&ctx->lock_user_table);
     HASH_FIND_STR(ctx->user_hash_table, nick, temp);
     if (temp)
     {
@@ -45,12 +46,15 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
         char ret[MAX_BUFFER_SIZE];
         sprintf(ret, ":%s %s * %s :Nickname is already in use\r\n",
                 ctx->server_host, ERR_NICKNAMEINUSE, nick);
+        pthread_mutex_unlock(&ctx->lock_user_table);
         return send_reply(ret, NULL, user_info);
     }
 
     // labels this connection as a user connection
     // ignore if it's already registered
-    modify_connection(ctx->connection_hash_table, user_info->client_fd, USER_CONNECTION);
+    pthread_mutex_lock(&ctx->lock_connection_table);
+    modify_connection(&(ctx->connection_hash_table), user_info->client_fd, USER_CONNECTION);
+    pthread_mutex_unlock(&ctx->lock_connection_table);
 
     if (user_info->registered)
     {
@@ -59,6 +63,7 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
         HASH_DEL(ctx->user_hash_table, user_info);
         user_info->nick = nick;
         HASH_ADD_KEYPTR(hh, ctx->user_hash_table, nick, strlen(nick), user_info);
+        pthread_mutex_unlock(&ctx->lock_user_table);
         return 0;
     }
 
@@ -67,11 +72,14 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
     {
         user_info->registered = true;
         // labels this connection as a registered connection
-        modify_connection(ctx->connection_hash_table, user_info->client_fd, REGISTERED_CONNECTION);
+        pthread_mutex_lock(&ctx->lock_connection_table);
+        modify_connection(&(ctx->connection_hash_table), user_info->client_fd, REGISTERED_CONNECTION);
+        pthread_mutex_unlock(&ctx->lock_connection_table);
         HASH_ADD_KEYPTR(hh, ctx->user_hash_table, nick, strlen(nick), user_info);
         send_welcome(user_info, ctx->server_host);
     }
 
+    pthread_mutex_unlock(&ctx->lock_user_table);
     return 0;
 }
 
@@ -104,15 +112,22 @@ int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
     user_info->fullname = msg->params[msg->nparams - 1];
 
     // labels this connection as a user connection
-    modify_connection(ctx->connection_hash_table, user_info->client_fd, USER_CONNECTION);
+    pthread_mutex_lock(&ctx->lock_connection_table);
+    modify_connection(&(ctx->connection_hash_table), user_info->client_fd, USER_CONNECTION);
+    pthread_mutex_unlock(&ctx->lock_connection_table);
 
     if (can_register(user_info))
     {
         // add to ctx->user_table
         user_info->registered = true;
+        pthread_mutex_lock(&ctx->lock_user_table);
         HASH_ADD_KEYPTR(hh, ctx->user_hash_table, user_info->nick, strlen(user_info->nick), user_info);
+        pthread_mutex_unlock(&ctx->lock_user_table);
+
         // labels this connection as a registered connection
-        modify_connection(ctx->connection_hash_table, user_info->client_fd, REGISTERED_CONNECTION);
+        pthread_mutex_lock(&ctx->lock_connection_table);
+        modify_connection(&(ctx->connection_hash_table), user_info->client_fd, REGISTERED_CONNECTION);
+        pthread_mutex_unlock(&ctx->lock_connection_table);
         // send welcome
         send_welcome(user_info, ctx->server_host);
     }
@@ -148,7 +163,10 @@ int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle ms
     char *target_nick = msg->params[0];
     user_handle target_user;
 
+    pthread_mutex_lock(&ctx->lock_user_table);
     HASH_FIND_STR(ctx->user_hash_table, target_nick, target_user);
+    pthread_mutex_unlock(&ctx->lock_user_table);
+
     if (!target_user)
     {
         // ERR_NOSUCHNICK
@@ -183,7 +201,10 @@ int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg
     char *target_nick = msg->params[0];
     user_handle target_user;
 
+    pthread_mutex_lock(&ctx->lock_user_table);
     HASH_FIND_STR(ctx->user_hash_table, target_nick, target_user);
+    pthread_mutex_unlock(&ctx->lock_user_table);
+
     if (!target_user)
     {
         chilog(WARNING, "handler_NOTICE: no such nick\r\n");
@@ -241,7 +262,10 @@ int handler_WHOIS(context_handle ctx, user_handle user_info, message_handle msg)
     char *target_nick = msg->params[0];
 
     user_handle target_user;
+    pthread_mutex_lock(&ctx->lock_user_table);
     HASH_FIND_STR(ctx->user_hash_table, target_nick, target_user);
+    pthread_mutex_unlock(&ctx->lock_user_table);
+
     if (!target_user)
     {
         // ERR_NOSUCHNICK
@@ -327,6 +351,7 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
     
     connection_handle temp;
     
+    pthread_mutex_lock(&ctx->lock_connection_table);
     for(temp = ctx->connection_hash_table; temp!= NULL; temp = temp->hh.next){
         if(temp->state==0){
             unknown_connections++;
@@ -336,6 +361,7 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
             registered_connections++;
         }
     }
+    pthread_mutex_unlock(&ctx->lock_connection_table);
 
     //TODO: change the parameters for op and channel
     char luser_client[MAX_BUFFER_SIZE];
@@ -394,7 +420,10 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg) 
 
     char *name = msg->params[0];
     channel_handle channel = NULL;
+
+    pthread_mutex_lock(&ctx->lock_channel_table);
     HASH_FIND_STR(ctx->channel_hash_table, name, channel);
+
     if (!channel) {
         // need to create a new channel
         channel = create_channel(name);
@@ -402,13 +431,21 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg) 
         HASH_ADD_KEYPTR(hh, ctx->channel_hash_table, name, strlen(name), channel);
     }
 
+    pthread_mutex_unlock(&ctx->lock_channel_table);
+
     // add user to current channel
     // TODO, update when change nick
     join_channel(channel, user_info);
     
     // send reply
-    // skip RPL_TOPIC
     char reply[MAX_BUFFER_SIZE];
+    // :nick!user@10.150.42.58 JOIN #test
+    sprintf(reply, ":%s!%s@%s JOIN %s",
+        user_info->nick, user_info->username, ctx->server_host, name);
+    if (send_reply(reply, NULL, user_info) == -1)
+        return -1;
+    
+    // skip RPL_TOPIC
     // :hostname 353 nick = #foobar :foobar1 foobar2 foobar3
     // TODO
     sprintf(reply, ":%s %s %s = %s :foobar1 foobar2 foobar3\r\n",

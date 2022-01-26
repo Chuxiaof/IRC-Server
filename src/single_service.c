@@ -33,7 +33,9 @@ void *service_single_client(void *args)
         {
             chilog(INFO, "client %s disconnected", user_info->client_host_name);
             close(user_info->client_fd);
-            delete_connection(ctx->connection_hash_table, user_info->client_fd);
+            pthread_mutex_lock(&ctx->lock_connection_table);
+            delete_connection(&(ctx->connection_hash_table), user_info->client_fd);
+            pthread_mutex_unlock(&ctx->lock_connection_table);
             pthread_exit(NULL);
         }
 
@@ -41,7 +43,9 @@ void *service_single_client(void *args)
         {
             chilog(ERROR, "recv from %s fail", user_info->client_host_name);
             close(user_info->client_fd);
-            delete_connection(ctx->connection_hash_table, user_info->client_fd);
+            pthread_mutex_lock(&ctx->lock_connection_table);
+            delete_connection(&(ctx->connection_hash_table), user_info->client_fd);
+            pthread_mutex_unlock(&ctx->lock_connection_table);
             pthread_exit(NULL);
         }
 
@@ -64,7 +68,9 @@ void *service_single_client(void *args)
                     close(user_info->client_fd);
                     free(wa);
                     //TODO: delete USER from hash table
-                    delete_connection(ctx->connection_hash_table, user_info->client_fd);
+                    pthread_mutex_lock(&ctx->lock_connection_table);
+                    delete_connection(&(ctx->connection_hash_table), user_info->client_fd);
+                    pthread_mutex_unlock(&ctx->lock_connection_table);
                     pthread_exit(NULL);
                 }
                 // TODO: free message

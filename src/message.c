@@ -55,8 +55,12 @@ int message_from_string(message_handle msg, char *s)
 int message_to_string(message_handle msg, char *s)
 {
     // :preix cmd [params] :longlast
-    // prefix: required
-    // cmd: not required
+    if (msg->prefix) 
+        sprintf(s, ":%s", msg->prefix);
+    
+    if (msg->cmd) 
+        sprintf(s, "%s %s", s, msg->cmd);
+    
     sds params;
     if (msg->longlast)
     {
@@ -68,20 +72,12 @@ int message_to_string(message_handle msg, char *s)
         params = sdsjoin(msg->params, msg->nparams, " ");
     }
 
-    if (msg->cmd != NULL)
-    {
-        sprintf(s, ":%s %s %s",
-                msg->prefix, msg->cmd, params);
-    }
-    else
-    {
-        sprintf(s, ":%s %s", msg->prefix, params);
-    }
-
+    sprintf(s, "%s %s\r\n", s, params);
+    sdsfree(params);
     return 0;
 }
 
-int message_construct(message_handle msg, char *prefix, char *cmd)
+int message_construct(message_handle msg, char *prefix, char *cmd, char *nick)
 {
     if (msg == NULL)
     {
@@ -90,17 +86,22 @@ int message_construct(message_handle msg, char *prefix, char *cmd)
     }
 
     if (empty_string(prefix))
-    {
         chilog(WARNING, "message_construct: empty prefix");
-    }
 
     if (empty_string(cmd))
-    {
         chilog(WARNING, "message_construct: empty cmd");
-    }
+
+    if (empty_string(nick))
+        chilog(WARNING, "message_construct: empty nick");
 
     msg->prefix = prefix;
     msg->cmd = cmd;
+    msg->nparams = 0;
+    msg->longlast = false;
+
+    if (!empty_string(nick)) {
+        return message_add_parameter(msg, nick, false);
+    }
     return 0;
 }
 
@@ -118,7 +119,7 @@ int message_add_parameter(message_handle msg, char *param, bool longlast)
         return -1;
     }
 
-    if (longlast)
+    if (msg->longlast)
     {
         chilog(ERROR, "message_add_parameter: longlast is true, can't add params any more");
         return -1;

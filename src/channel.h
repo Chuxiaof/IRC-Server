@@ -33,6 +33,8 @@ sds all_user_nicks(channel_handle channel);
 
 void leave_channel(channel_handle channel, user_handle user);
 
+unsigned int channel_user_count(channel_handle channel);
+
 bool empty_channel(channel_handle channel);
 
 

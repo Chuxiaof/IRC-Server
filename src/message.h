@@ -19,7 +19,7 @@ int message_from_string(message_handle msg, char *s);
 
 int message_to_string(message_handle msg, char *s);
 
-int message_construct(message_handle msg, char *prefix, char *cmd);
+int message_construct(message_handle msg, char *prefix, char *cmd, char *nick);
 
 int message_add_parameter(message_handle msg, char * param, bool longlast);
 

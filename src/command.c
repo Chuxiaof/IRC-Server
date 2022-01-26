@@ -24,7 +24,8 @@ static struct handler_entry handler_entries[] = {
     {"QUIT", handler_QUIT},
     {"LUSERS", handler_LUSERS},
     {"JOIN", handler_JOIN},
-    {"PART", handler_PART}
+    {"PART", handler_PART},
+    {"LIST", handler_LIST}
 };
 
 int handlers_num = sizeof(handler_entries) / sizeof(struct handler_entry);

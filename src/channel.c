@@ -68,13 +68,21 @@ void leave_channel(channel_handle channel, user_handle user) {
     chilog(INFO, "delete %s from user table of channel %s", user->nick, channel->name);
 }
 
+unsigned int channel_user_count(channel_handle channel) {
+    if (channel == NULL) {
+        chilog(CRITICAL, "channel_user_count: empty params");
+        return 0;
+    }
+    pthread_mutex_lock(&channel->lock_channel_user);
+    unsigned int count = HASH_COUNT(channel->user_table);
+    pthread_mutex_unlock(&channel->lock_channel_user);
+    return count;
+}
+
 bool empty_channel(channel_handle channel) {
     if (channel == NULL) {
         chilog(CRITICAL, "empty_channel: empty params");
         return false;
     }
-    pthread_mutex_lock(&channel->lock_channel_user);
-    unsigned int count = HASH_COUNT(channel->user_table);
-    pthread_mutex_unlock(&channel->lock_channel_user);
-    return count == 0;
+    return channel_user_count(channel) == 0;
 }

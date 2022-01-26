@@ -441,7 +441,7 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
 
     char *name = msg->params[0];
     channel_handle channel = NULL;
-
+    
     pthread_mutex_lock(&ctx->lock_channel_table);
     HASH_FIND_STR(ctx->channel_hash_table, name, channel);
 
@@ -565,8 +565,40 @@ int handler_PART(context_handle ctx, user_handle user_info, message_handle msg)
         pthread_mutex_unlock(&ctx->lock_channel_table);
     }
 
-    // TODO remove channel from user
     return 0;
+}
+
+int handler_LIST(context_handle ctx, user_handle user_info, message_handle msg) {
+    char reply[MAX_BUFFER_SIZE];
+
+    if (msg->nparams == 1) {
+        char *name = msg->params[0];
+        channel_handle channel = NULL;
+        pthread_mutex_lock(&ctx->lock_channel_table);
+        HASH_FIND_STR(ctx->channel_hash_table, name, channel);
+        pthread_mutex_unlock(&ctx->lock_channel_table);
+        if (channel) {
+            sprintf(reply, ":%s %s %s %s %u :\r\n",
+                ctx->server_host, RPL_LIST, user_info->nick, channel->name, channel_user_count(channel));
+            if (send_reply(reply, NULL, user_info) == -1)
+                return -1;
+        }
+    } else {
+        pthread_mutex_lock(&ctx->lock_channel_table);
+        for (channel_handle cha = ctx->channel_hash_table; cha != NULL; cha = cha->hh.next) {
+            sprintf(reply, ":%s %s %s %s %u :\r\n",
+                ctx->server_host, RPL_LIST, user_info->nick, cha->name, channel_user_count(cha));
+            if (send_reply(reply, NULL, user_info) == -1) {
+                pthread_mutex_unlock(&ctx->lock_channel_table);
+                return -1;
+            }
+        }
+        pthread_mutex_unlock(&ctx->lock_channel_table);
+    }
+
+    sprintf(reply, ":%s %s %s :End of LIST\r\n",
+        ctx->server_host, RPL_LISTEND, user_info->nick);
+    return send_reply(reply, NULL, user_info);
 }
 
 static int check_insufficient_param(int have, int target, char *cmd, user_handle user_info, context_handle ctx)
@@ -684,7 +716,7 @@ static int send_reply(char *str, message_handle msg, user_handle user_info)
 
     if (str == NULL)
     {
-        str = (char *)malloc(MAX_BUFFER_SIZE);
+        str = calloc(1, MAX_BUFFER_SIZE);
         message_to_string(msg, str);
     }
 

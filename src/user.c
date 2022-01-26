@@ -25,7 +25,7 @@ user_handle create_user()
 
 void delete_user(user_handle *hash_table, user_handle user_info)
 {
-    if (user_info->nick)
+    if (user_info && user_info->nick)
     {
         user_handle temp;
         HASH_FIND_STR(*hash_table, user_info->nick, temp);

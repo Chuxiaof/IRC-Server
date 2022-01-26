@@ -429,9 +429,16 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg) 
         channel = create_channel(name);
         // add channel to ctx
         HASH_ADD_KEYPTR(hh, ctx->channel_hash_table, name, strlen(name), channel);
+        chilog(INFO, "successfully created new channel %s", name);
     }
 
     pthread_mutex_unlock(&ctx->lock_channel_table);
+
+    // already on channel
+    if (already_on_channel(channel, user_info->nick)) {
+        chilog(INFO, "handler_JOIN: user %s already on channel %s", user_info->nick, name);
+        return 0;
+    }
 
     // add user to current channel
     // TODO, update when change nick
@@ -439,22 +446,33 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg) 
     
     // send reply
     char reply[MAX_BUFFER_SIZE];
+    // notify all users
     // :nick!user@10.150.42.58 JOIN #test
-    sprintf(reply, ":%s!%s@%s JOIN %s",
+    sprintf(reply, ":%s!%s@%s JOIN %s\r\n",
         user_info->nick, user_info->username, ctx->server_host, name);
-    if (send_reply(reply, NULL, user_info) == -1)
-        return -1;
+
+    pthread_mutex_lock(&channel->lock_channel_user);
+    for (user_handle usr = channel->user_table; usr != NULL; usr = usr->hh.next) {
+        if (send_reply(reply, NULL, usr) == -1) {
+            pthread_mutex_unlock(&channel->lock_channel_user);
+            return -1;
+        }
+    }
+    pthread_mutex_unlock(&channel->lock_channel_user);
     
     // skip RPL_TOPIC
-    // :hostname 353 nick = #foobar :foobar1 foobar2 foobar3
-    // TODO
-    sprintf(reply, ":%s %s %s = %s :foobar1 foobar2 foobar3\r\n",
-        ctx->server_host, RPL_NAMREPLY, user_info->nick, name);
-    if (send_reply(reply, NULL, user_info) == -1)
+    // :frost 353 nick = test :@nick
+    sds nicks = all_user_nicks(channel);
+    sprintf(reply, ":%s %s %s = %s :@%s\r\n",
+        ctx->server_host, RPL_NAMREPLY, user_info->nick, name, nicks);
+    if (send_reply(reply, NULL, user_info) == -1) {
+        sdsfree(nicks);
         return -1;
+    }
+    sdsfree(nicks);
     
     // :hostname 366 nick #foobar :End of NAMES list
-    sprintf(reply, ":%s %s %s %s :End of NAMES list",
+    sprintf(reply, ":%s %s %s %s :End of NAMES list\r\n",
         ctx->server_host, RPL_ENDOFNAMES, user_info->nick, name);
     return send_reply(reply, NULL, user_info);
 }
@@ -470,10 +488,59 @@ int handler_PART(context_handle ctx, user_handle user_info, message_handle msg) 
         return -1;
     }
 
-    // char *channel_name = msg->params[0];
-    // channel_handle channel = NULL;
-    // HASH_FIND_STR()
+    char *channel_name = msg->params[0];
+    channel_handle channel = NULL;
+    
+    pthread_mutex_lock(&ctx->lock_channel_table);
+    HASH_FIND_STR(ctx->channel_hash_table, channel_name, channel);
+    pthread_mutex_unlock(&ctx->lock_channel_table);
 
+    if (!channel) {
+        // ERR_NOSUCHCHANNEL
+        char reply[MAX_BUFFER_SIZE];
+        sprintf(reply, ":%s %s %s %s :No such channel\r\n",
+            ctx->server_host, ERR_NOSUCHCHANNEL, user_info->nick, channel_name);
+        return send_reply(reply, NULL, user_info);
+    }
+
+    if (!already_on_channel(channel, user_info->nick)) {
+        // ERR_NOTONCHANNEL
+        char reply[MAX_BUFFER_SIZE];
+        sprintf(reply, ":%s %s %s %s :You're not on that channel\r\n",
+            ctx->server_host, ERR_NOTONCHANNEL, user_info->nick, channel_name);
+        return send_reply(reply, NULL, user_info);
+    }
+
+    // send reply, notify all users
+    // :nick1!user1@38.124.64.205 PART test :bye
+    char reply[MAX_BUFFER_SIZE];
+    if (msg->longlast) {
+        sprintf(reply, ":%s!%s@%s PART %s :%s\r\n",
+            user_info->nick, user_info->username, user_info->client_host_name, channel_name, msg->params[1]);
+    } else {
+        sprintf(reply, ":%s!%s@%s PART %s\r\n",
+            user_info->nick, user_info->username, user_info->client_host_name, channel_name);
+    }
+
+    pthread_mutex_lock(&channel->lock_channel_user);
+    for (user_handle usr = channel->user_table; usr != NULL; usr = usr->hh.next) {
+        if (send_reply(reply, NULL, usr) == -1) {
+            pthread_mutex_unlock(&channel->lock_channel_user);
+            return -1;
+        }
+    }
+    pthread_mutex_unlock(&channel->lock_channel_user);
+
+    // remove user from channel
+    leave_channel(channel, user_info);
+    if (empty_channel(channel)) {
+        // delete this channel
+        pthread_mutex_lock(&ctx->lock_channel_table);
+        HASH_DEL(ctx->channel_hash_table, channel);
+        pthread_mutex_unlock(&ctx->lock_channel_table);
+    }
+
+    // TODO remove channel from user
     return 0;
 }
 

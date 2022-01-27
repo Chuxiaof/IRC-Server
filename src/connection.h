@@ -8,7 +8,7 @@
 
 struct connection_t{
     int socket_num; //key
-    int state;   
+    int state;  
     UT_hash_handle hh;
 };
 

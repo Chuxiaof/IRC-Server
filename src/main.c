@@ -213,6 +213,7 @@ int main(int argc, char *argv[])
     ctx->user_hash_table = NULL;
     ctx->connection_hash_table = NULL;
     ctx->channel_hash_table = NULL;
+    ctx->irc_op_num = 0;
     pthread_mutex_init(&ctx->lock_user_table, NULL);
     pthread_mutex_init(&ctx->lock_connection_table, NULL);
     pthread_mutex_init(&ctx->lock_channel_table, NULL);

@@ -12,6 +12,8 @@ struct context_t {
 
     char * password;
 
+    int irc_op_num;
+
     user_handle user_hash_table;
     pthread_mutex_t lock_user_table;
 

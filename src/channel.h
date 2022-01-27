@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include <sds.h>
 #include <stdbool.h>
-
+#include <user.h>
 #include "membership.h"
 
 struct channel_t {
@@ -60,6 +60,12 @@ bool is_channel_operator(channel_handle channel, char *nick);
 // 1 : not on channel
 // 2 : unsupported mode
 int update_member_mode(channel_handle channel, char *nick, char *mode);
+
+//0: success
+//-1: error
+//send message(reply) to all the members in the channel except the sender itself
+// if there's no need to exclude the sender, set sender_nick argument as NULL
+int send_to_channel_members(user_handle *hash_table, channel_handle channel, char *reply, char * sender_nick);
 
 
 #endif

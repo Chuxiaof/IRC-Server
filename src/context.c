@@ -120,6 +120,7 @@ int *count_connection_state(context_handle ctx) {
 }
 
 int add_user_nick(context_handle ctx, char *nick, user_handle user) {
+    chilog(INFO, "add user nick");
     if (ctx == NULL || nick == NULL || sdslen(nick) < 1 || user == NULL) {
         chilog(ERROR, "add_user_nick: empty params");
         return FAILURE;
@@ -127,7 +128,7 @@ int add_user_nick(context_handle ctx, char *nick, user_handle user) {
     user_handle temp = NULL;
     pthread_mutex_lock(&ctx->mutex_user_table);
     HASH_FIND_STR(ctx->user_hash_table, nick, temp);
-    if (!temp) {
+    if (temp) {
         chilog(INFO, "nick %s already in use", nick);
         pthread_mutex_unlock(&ctx->mutex_user_table);
         return NICK_IN_USE;
@@ -148,7 +149,7 @@ int update_user_nick(context_handle ctx, char *nick, user_handle user, channel_h
     user_handle temp = NULL;
     pthread_mutex_lock(&ctx->mutex_user_table);
     HASH_FIND_STR(ctx->user_hash_table, nick, temp);
-    if (!temp) {
+    if (temp) {
         chilog(INFO, "nick %s already in use", nick);
         pthread_mutex_unlock(&ctx->mutex_user_table);
         return NICK_IN_USE;

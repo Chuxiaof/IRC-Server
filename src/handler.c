@@ -47,15 +47,17 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
     channel_handle *affected_channels;
     int affected_channel_count;
 
-    int rv = user_info->registered ? update_user_nick(ctx, new_nick, user_info, &affected_channels, &affected_channel_count) 
-                                    : add_user_nick(ctx, new_nick, user_info);
+    int rv = user_info->registered ? 
+        update_user_nick(ctx, new_nick, user_info, &affected_channels, &affected_channel_count) :
+        add_user_nick(ctx, new_nick, user_info);
 
     switch (rv)
     {
     case NICK_IN_USE:
         chilog(INFO, "nick %s already in use", new_nick);
+        char *temp_nick = user_info->nick ? user_info->nick : "*";
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :Nickname is already in use\r\n",
-                ctx->server_host, ERR_NICKNAMEINUSE, user_info->nick || "*", new_nick);
+                ctx->server_host, ERR_NICKNAMEINUSE, temp_nick, new_nick);
         return send_reply(reply, user_info, true);
     case FAILURE:
         chilog(ERROR, "error occurs for handler_NICK");
@@ -676,8 +678,9 @@ static int check_insufficient_param(int have, int target, char *cmd, user_handle
 static int check_registered(context_handle ctx, user_handle user_info)
 {
     if (!user_info->registered) {
+        char *temp_nick = user_info->nick ? user_info->nick : "*";
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s :You have not registered\r\n", 
-            ctx->server_host, ERR_NOTREGISTERED, user_info->nick || "*");
+            ctx->server_host, ERR_NOTREGISTERED, temp_nick);
         if (send_reply(reply, user_info, true) == FAILURE)
             return FAILURE;
         return NOTREGISTERED;

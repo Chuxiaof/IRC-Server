@@ -72,8 +72,7 @@ int main(int argc, char *argv[])
     int verbosity = 0;
 
     while ((opt = getopt(argc, argv, "p:o:s:n:vqh")) != -1)
-        switch (opt)
-        {
+        switch (opt) {
         case 'p':
             port = strdup(optarg);
             break;
@@ -84,8 +83,7 @@ int main(int argc, char *argv[])
             servername = strdup(optarg);
             break;
         case 'n':
-            if (access(optarg, R_OK) == -1)
-            {
+            if (access(optarg, R_OK) == -1) {
                 printf("ERROR: No such file: %s\n", optarg);
                 exit(-1);
             }
@@ -106,21 +104,18 @@ int main(int argc, char *argv[])
             exit(-1);
         }
 
-    if (!passwd)
-    {
+    if (!passwd) {
         fprintf(stderr, "ERROR: You must specify an operator password\n");
         exit(-1);
     }
 
-    if (network_file && !servername)
-    {
+    if (network_file && !servername) {
         fprintf(stderr, "ERROR: If specifying a network file, you must also specify a server name.\n");
         exit(-1);
     }
 
     /* Set logging level based on verbosity */
-    switch (verbosity)
-    {
+    switch (verbosity) {
     case -1:
         chirc_setloglevel(QUIET);
         break;
@@ -143,8 +138,7 @@ int main(int argc, char *argv[])
     sigset_t new;
     sigemptyset(&new);
     sigaddset(&new, SIGPIPE);
-    if (pthread_sigmask(SIG_BLOCK, &new, NULL) != 0)
-    {
+    if (pthread_sigmask(SIG_BLOCK, &new, NULL) != 0) {
         perror("Unable to mask SIGPIPE");
         exit(-1);
     }
@@ -163,36 +157,30 @@ int main(int argc, char *argv[])
     socklen_t sin_size = sizeof(struct sockaddr_in);
 
     int rv, yes = 1;
-    if ((rv = getaddrinfo(NULL, port, &hints, &res)) != 0)
-    {
+    if ((rv = getaddrinfo(NULL, port, &hints, &res)) != 0) {
         chilog(CRITICAL, "getaddrinfo: %s\n", gai_strerror(rv));
         exit(1);
     }
 
-    for (p = res; p != NULL; p = p->ai_next)
-    {
-        if ((server_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
-        {
+    for (p = res; p != NULL; p = p->ai_next) {
+        if ((server_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
             chilog(WARNING, "could not open socket");
             continue;
         }
 
-        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
-        {
+        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
             chilog(WARNING, "setsockopt error");
             close(server_fd);
             continue;
         }
 
-        if (bind(server_fd, p->ai_addr, p->ai_addrlen) == -1)
-        {
+        if (bind(server_fd, p->ai_addr, p->ai_addrlen) == -1) {
             chilog(WARNING, "server: bind failed");
             close(server_fd);
             continue;
         }
 
-        if (listen(server_fd, BACKLOG) == -1)
-        {
+        if (listen(server_fd, BACKLOG) == -1) {
             chilog(WARNING, "server: listen failed");
             close(server_fd);
             continue;
@@ -201,8 +189,7 @@ int main(int argc, char *argv[])
         break;
     }
 
-    if (p == NULL)
-    {
+    if (p == NULL) {
         chilog(CRITICAL, "could not find a socket to bind to");
         pthread_exit(NULL);
     }
@@ -243,23 +230,19 @@ int main(int argc, char *argv[])
 
     chilog(INFO, "server: waiting for connections...");
 
-    while (true)
-    {
-        if ((client_addr = calloc(1, sin_size)) == NULL)
-        { 
+    while (true) {
+        if ((client_addr = calloc(1, sin_size)) == NULL) {
             // allocate client_addr for each thread
             chilog(ERROR, "fail to allocate memory for client_addr");
         }
 
-        if ((client_fd = accept(server_fd, (struct sockaddr *)client_addr, &sin_size)) == -1)
-        {
+        if ((client_fd = accept(server_fd, (struct sockaddr *)client_addr, &sin_size)) == -1) {
             free(client_addr);
             chilog(INFO, "Could not accept connection");
             continue;
         }
 
-        if ((wa = calloc(1, sizeof(struct worker_args))) == NULL)
-        { 
+        if ((wa = calloc(1, sizeof(struct worker_args))) == NULL) {
             // create thread function args for each thread
             chilog(ERROR, "fail to allocate memory for wa");
         }
@@ -268,14 +251,13 @@ int main(int argc, char *argv[])
         connection_handle connection_info = create_connection(client_fd);
         //add this connection_info into corresponding hash table
         pthread_mutex_lock(&ctx->lock_connection_table);
-        HASH_ADD_INT(ctx->connection_hash_table, socket_num, connection_info); 
+        HASH_ADD_INT(ctx->connection_hash_table, socket_num, connection_info);
         pthread_mutex_unlock(&ctx->lock_connection_table);
 
         user_handle user_info = create_user(); // create a user_handle for each thread
         user_info->client_fd = client_fd;
         char *client_host_name = malloc(HOST_NAME_LENGTH);
-        if (client_host_name == NULL)
-        {
+        if (client_host_name == NULL) {
             chilog(ERROR, "fail to allocate memory for client_host_name");
         } else {
             getnameinfo((struct sockaddr *)client_addr, sin_size, client_host_name, HOST_NAME_LENGTH,
@@ -288,8 +270,7 @@ int main(int argc, char *argv[])
         wa->user_info = user_info;
         wa->ctx = ctx;
 
-        if (pthread_create(&worker_thread, NULL, service_single_client, wa) != 0)
-        {
+        if (pthread_create(&worker_thread, NULL, service_single_client, wa) != 0) {
             perror("could not create a worker thread");
             pthread_mutex_lock(&ctx->lock_connection_table);
             HASH_DEL(ctx->connection_hash_table, connection_info);

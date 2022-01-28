@@ -11,8 +11,7 @@
 user_handle create_user()
 {
     user_handle user = (user_handle)malloc(sizeof(user_t));
-    if (user == NULL)
-    {
+    if (user == NULL) {
         chilog(ERROR, "fail to create user: no enough memory");
         return NULL;
     }
@@ -26,12 +25,10 @@ user_handle create_user()
 
 void delete_user(user_handle *hash_table, user_handle user_info)
 {
-    if (user_info && user_info->nick)
-    {
+    if (user_info && user_info->nick) {
         user_handle temp;
         HASH_FIND_STR(*hash_table, user_info->nick, temp);
-        if (temp)
-        {
+        if (temp) {
             HASH_DEL(*hash_table, temp);
         }
     }
@@ -39,8 +36,7 @@ void delete_user(user_handle *hash_table, user_handle user_info)
 
 void destroy_user(user_handle user)
 {
-    if (user != NULL)
-    {
+    if (user != NULL) {
         // TODO
         // depend on the implementation of char *
         // string.h or sds

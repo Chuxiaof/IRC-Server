@@ -25,12 +25,10 @@ void *service_single_client(void *args)
     int ptr = 0;
     bool flag = false;
 
-    while (true)
-    {
+    while (true) {
         int len = recv(user_info->client_fd, recv_msg, MAX_BUFFER_SIZE, 0);
 
-        if (len == 0)
-        {
+        if (len == 0) {
             chilog(INFO, "client %s disconnected", user_info->client_host_name);
             close(user_info->client_fd);
             pthread_mutex_lock(&ctx->lock_connection_table);
@@ -42,8 +40,7 @@ void *service_single_client(void *args)
             pthread_exit(NULL);
         }
 
-        if (len == -1)
-        {
+        if (len == -1) {
             chilog(ERROR, "recv from %s fail", user_info->client_host_name);
             close(user_info->client_fd);
             pthread_mutex_lock(&ctx->lock_connection_table);
@@ -57,11 +54,9 @@ void *service_single_client(void *args)
 
         chilog(DEBUG, "recv_msg: %s", recv_msg);
 
-        for (int i = 0; i < len; i++)
-        {
+        for (int i = 0; i < len; i++) {
             char c = recv_msg[i];
-            if (c == '\n' && flag)
-            {
+            if (c == '\n' && flag) {
                 // whenever we identify a complete command
                 sds command = sdscpylen(sdsempty(), buffer, ptr - 1);
                 // create a message
@@ -69,8 +64,7 @@ void *service_single_client(void *args)
                 // transform command into message
                 message_from_string(msg, command);
                 // process the message
-                if (process_cmd(ctx, user_info, msg) == -1)
-                {
+                if (process_cmd(ctx, user_info, msg) == -1) {
                     // if there's an error during processing this command, then kill this thread
                     close(user_info->client_fd);
                     free(wa->ctx);

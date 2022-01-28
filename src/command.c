@@ -7,8 +7,7 @@
 
 typedef int (*handler_func)(context_handle ctx, user_handle user_info, message_handle msg);
 
-struct handler_entry
-{
+struct handler_entry {
     char *command_name;
     handler_func func;
 };
@@ -35,15 +34,12 @@ int handlers_num = sizeof(handler_entries) / sizeof(struct handler_entry);
 int process_cmd(context_handle ctx, user_handle user_info, message_handle msg)
 {
     int i;
-    for (i = 0; i < handlers_num; i++)
-    {
-        if (!strcmp(msg->cmd, handler_entries[i].command_name))
-        {
+    for (i = 0; i < handlers_num; i++) {
+        if (!strcmp(msg->cmd, handler_entries[i].command_name)) {
             return handler_entries[i].func(ctx, user_info, msg);
         }
     }
-    if (i == handlers_num)
-    {
+    if (i == handlers_num) {
         chilog(WARNING, "unsupported command");
         return handler_UNKNOWNCOMMAND(ctx, user_info, msg);
     }

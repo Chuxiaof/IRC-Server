@@ -69,8 +69,7 @@ void __chilog(loglevel_t level, char *fmt, va_list argptr)
     t = time(NULL);
     strftime(buf,80,"%Y-%m-%d %H:%M:%S",localtime(&t));
 
-    switch(level)
-    {
+    switch(level) {
     case CRITICAL:
         levelstr = "CRITIC";
         break;

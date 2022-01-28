@@ -10,6 +10,8 @@ struct worker_args {
 
 };
 
+typedef struct worker_args worker_args;
+
 void *service_single_client(void *args);
 
 

@@ -35,6 +35,4 @@ int handler_OPER(context_handle ctx, user_handle user_info, message_handle msg);
 
 int handler_MODE(context_handle ctx, user_handle user_info, message_handle msg);
 
-int send_reply(char *str, message_handle msg, user_handle user_info);
-
 #endif

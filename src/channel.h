@@ -47,6 +47,11 @@ int join_channel(channel_handle channel, char *nick, bool is_creator);
 // 2: empty channel
 int leave_channel(channel_handle channel, char *nick);
 
+// 0: success
+// -1: error
+// 1: not on channel
+int update_member_nick(channel_handle channel, char *nick);
+
 
 int channel_member_count(channel_handle channel);
 
@@ -64,12 +69,5 @@ bool is_channel_operator(channel_handle channel, char *nick);
 // 1 : not on channel
 // 2 : unsupported mode
 int update_member_mode(channel_handle channel, char *nick, char *mode);
-
-//0: success
-//-1: error
-//send message(reply) to all the members in the channel except the sender itself
-// if there's no need to exclude the sender, set sender_nick argument as NULL
-int send_to_channel_members(context_handle ctx, channel_handle channel, char *reply, char * sender_nick);
-
 
 #endif

@@ -31,24 +31,14 @@ void *service_single_client(void *args)
         if (len == 0) {
             chilog(INFO, "client %s disconnected", user_info->client_host_name);
             close(user_info->client_fd);
-            pthread_mutex_lock(&ctx->lock_connection_table);
-            delete_connection(&(ctx->connection_hash_table), user_info->client_fd);
-            pthread_mutex_unlock(&ctx->lock_connection_table);
-            pthread_mutex_lock(&ctx->lock_user_table);
-            delete_user(&(ctx->user_hash_table), user_info);
-            pthread_mutex_unlock(&ctx->lock_user_table);
+            free_data(wa);
             pthread_exit(NULL);
         }
 
         if (len == -1) {
             chilog(ERROR, "recv from %s fail", user_info->client_host_name);
             close(user_info->client_fd);
-            pthread_mutex_lock(&ctx->lock_connection_table);
-            delete_connection(&(ctx->connection_hash_table), user_info->client_fd);
-            pthread_mutex_unlock(&ctx->lock_connection_table);
-            pthread_mutex_lock(&ctx->lock_user_table);
-            delete_user(&(ctx->user_hash_table), user_info);
-            pthread_mutex_unlock(&ctx->lock_user_table);
+            free_data(wa);
             pthread_exit(NULL);
         }
 
@@ -57,40 +47,21 @@ void *service_single_client(void *args)
         for (int i = 0; i < len; i++) {
             char c = recv_msg[i];
             if (c == '\n' && flag) {
-                // whenever we identify a complete command
                 sds command = sdscpylen(sdsempty(), buffer, ptr - 1);
-                // create a message
-                message_handle msg = malloc(sizeof(message_t));
-                // transform command into message
+                message_handle msg = calloc(1, sizeof(message_t));
+                if (msg == NULL) {
+                    chilog(CRITICAL, "single_service: fail to allocate new memory");
+                    exit(1);
+                }
                 message_from_string(msg, command);
-                // process the message
                 if (process_cmd(ctx, user_info, msg) == -1) {
                     // if there's an error during processing this command, then kill this thread
                     close(user_info->client_fd);
-                    free(wa->ctx);
-                    free(wa->user_info);
-                    free(wa);
-
-                    // Delete this user from hash table
-                    //  if(user_info->nick){
-                    //      user_handle temp;
-                    //      pthread_mutex_lock(&ctx->lock_user_table);
-                    //      HASH_FIND_STR(ctx->user_hash_table, user_info->nick, temp);
-                    //      if(temp){
-                    //          HASH_DEL(ctx->user_hash_table, temp);
-                    //      }
-                    //      pthread_mutex_unlock(&ctx->lock_user_table);
-                    //  }
-                    pthread_mutex_lock(&ctx->lock_user_table);
-                    delete_user(&(ctx->user_hash_table), user_info);
-                    pthread_mutex_unlock(&ctx->lock_user_table);
-
-                    pthread_mutex_lock(&ctx->lock_connection_table);
-                    delete_connection(&(ctx->connection_hash_table), user_info->client_fd);
-                    pthread_mutex_unlock(&ctx->lock_connection_table);
+                    free_data(wa);
                     pthread_exit(NULL);
                 }
-                // TODO: free message
+                // free message
+                message_destroy(msg);
                 // after processing a command, continue to analyze the next command
                 flag = false;
                 ptr = 0;
@@ -100,4 +71,11 @@ void *service_single_client(void *args)
             flag = c == '\r';
         }
     }
+}
+
+void free_data(worker_args *args) {
+    delete_connection(args->ctx, args->user_info->client_fd);
+    delete_user(args->ctx, args->user_info);
+    destroy_user(args->user_info);
+    free(args);
 }

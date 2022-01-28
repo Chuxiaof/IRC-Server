@@ -10,7 +10,7 @@ channel_handle create_channel(char *name)
         chilog(CRITICAL, "create_channel: fail to allocate memory");
         exit(1);
     }
-    channel->name = name;
+    channel->name = sdscpylen(sdsempty(), name, sdslen(name));
     channel->member_table = NULL;
     pthread_mutex_init(&channel->mutex_member_table, NULL);
     chilog(INFO, "create_channel: successfully created channel %s", name);
@@ -103,6 +103,25 @@ int leave_channel(channel_handle channel, char *nick)
     return count == 0 ? 2 : 0;
 }
 
+int update_member_nick(channel_handle channel, char *nick) {
+    if (channel == NULL || nick == NULL || sdslen(nick) < 1) {
+        chilog(ERROR, "update_member_nick: empty params");
+        return -1;
+    }
+    membership_handle member = NULL;
+    pthread_mutex_lock(&channel->mutex_member_table);
+    HASH_FIND_STR(channel->member_table, nick, member);
+    if (!member) {
+        pthread_mutex_unlock(&channel->mutex_member_table);
+        return 1;
+    }
+    HASH_DEL(channel->member_table, member);
+    member->nick = sdscpylen(sdsempty(), nick, sdslen(nick));
+    HASH_ADD_KEYPTR(hh, channel->member_table, member->nick, sdslen(member->nick), member);
+    pthread_mutex_unlock(&channel->mutex_member_table);
+    return 0;
+}
+
 int channel_member_count(channel_handle channel)
 {
     if (channel == NULL) {
@@ -128,7 +147,7 @@ char **member_nicks_arr(channel_handle channel, int *count)
     pthread_mutex_lock(&channel->mutex_member_table);
     unsigned int num = HASH_COUNT(channel->member_table);
 
-    char **arr = calloc(sizeof(char *), num);
+    char **arr = calloc(num, sizeof(char *));
     if (arr == NULL) {
         chilog(CRITICAL, "all_user_nicks: fail to allocate new memory");
         exit(1);
@@ -211,24 +230,3 @@ int update_member_mode(channel_handle channel, char *nick, char *mode)
     return 2;
 }
 
-int send_to_channel_members(context_handle ctx, channel_handle channel, char *reply, char * sender_nick)
-{
-    int count = 0;
-    char **member_nicks = member_nicks_arr(channel, &count);
-    chilog(INFO, "number of channel mumber: %d", count);
-    for (int i = 0; i < count; i++) {
-        chilog(INFO, "start sending message...");
-        if((sender_nick!=NULL) &&(!strcmp(sender_nick, member_nicks[i]))) {
-            continue;
-        }
-        user_handle usr = NULL;
-        // TODO mutex, extract common functions
-        HASH_FIND_STR(ctx->user_hash_table, member_nicks[i], usr);
-        if ((!usr) || send_reply(reply, NULL, usr) == -1) {
-            chilog(INFO, "usr is NULL!");
-            free(member_nicks);
-            return -1;
-        }
-    }
-    free(member_nicks);
-}

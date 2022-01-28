@@ -6,14 +6,15 @@
 
 struct user_t
 {
+    // the socket of connection
+    int client_fd;
+    char *client_host_name;
+    
     char *nick;
     char *username;
     char *fullname;
     bool registered;
     bool is_irc_operator;
-    // the socket of connection
-    int client_fd;
-    char *client_host_name;
     
     // makes this structure hashable
     UT_hash_handle hh; 
@@ -25,8 +26,8 @@ typedef user_t * user_handle;
 
 user_handle create_user();
 
-void delete_user(user_handle * hash_table, user_handle user_info);
-
 void destroy_user(user_handle user);
+
+bool can_register(user_handle user);
 
 #endif

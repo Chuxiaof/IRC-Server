@@ -125,6 +125,7 @@ int message_add_parameter(message_handle msg, char *param, bool longlast)
 
 int message_destroy(message_handle msg)
 {
+    // TODO
     return 0;
 }
 

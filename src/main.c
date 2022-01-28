@@ -195,35 +195,14 @@ int main(int argc, char *argv[])
     }
 
     // create global context
-    context_handle ctx = (context_handle) malloc(sizeof(context_t));
-    ctx->password = passwd;
-    ctx->user_hash_table = NULL;
-    ctx->connection_hash_table = NULL;
-    ctx->channel_hash_table = NULL;
-    ctx->irc_op_num = 0;
-    pthread_mutex_init(&ctx->lock_user_table, NULL);
-    pthread_mutex_init(&ctx->lock_connection_table, NULL);
-    pthread_mutex_init(&ctx->lock_channel_table, NULL);
+    context_handle ctx = create_context(passwd);
 
     // multi-thread
     pthread_t worker_thread;
     struct worker_args *wa;
 
-    // TODO
-    // get the hostname of server
-    // char * server_host_name = malloc(sizeof(char)*HOST_NAME_LENGTH);
-    // if((getnameinfo(p->ai_addr, p->ai_addrlen, server_host_name, HOST_NAME_LENGTH, NULL, 0, 0)!=0)){
-    //     perror("getnameinfo error!");
-    // }
-    // get the hostname of server
     char *server_host_name = malloc(HOST_NAME_LENGTH);
     gethostname(server_host_name, HOST_NAME_LENGTH);
-    // struct hostent *he;
-    // getnameinfo(p->ai_addr, p->ai_addrlen, server_host_name, HOST_NAME_LENGTH, NULL, 0, 0);
-    // he = gethostbyaddr(p->ai_addr, p->ai_addrlen, AF_INET);
-    // chilog(INFO, "server host name: %s", he->h_name);
-    // ctx->server_host = he->h_name;
-    // chilog(INFO, "server host name: %s", server_host_name);
     ctx->server_host=server_host_name;
 
     freeaddrinfo(res);
@@ -250,9 +229,7 @@ int main(int argc, char *argv[])
         //create a connection handle for each connection(thread)
         connection_handle connection_info = create_connection(client_fd);
         //add this connection_info into corresponding hash table
-        pthread_mutex_lock(&ctx->lock_connection_table);
-        HASH_ADD_INT(ctx->connection_hash_table, socket_num, connection_info);
-        pthread_mutex_unlock(&ctx->lock_connection_table);
+        add_connection(ctx, connection_info);
 
         user_handle user_info = create_user(); // create a user_handle for each thread
         user_info->client_fd = client_fd;
@@ -272,15 +249,11 @@ int main(int argc, char *argv[])
 
         if (pthread_create(&worker_thread, NULL, service_single_client, wa) != 0) {
             perror("could not create a worker thread");
-            pthread_mutex_lock(&ctx->lock_connection_table);
-            HASH_DEL(ctx->connection_hash_table, connection_info);
-            pthread_mutex_unlock(&ctx->lock_connection_table);
-            free(connection_info);
-            free(wa);
-            free(ctx);
+            delete_connection(ctx, client_fd);
+            destroy_connection(connection_info);
             close(client_fd);
-            close(server_fd);
-            return EXIT_FAILURE;
+            destroy_user(user_info);
+            free(wa);
         }
     }
 

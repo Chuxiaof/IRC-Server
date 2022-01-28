@@ -46,7 +46,7 @@ int add_connection(context_handle ctx, connection_handle connection) {
         return FAILURE;
     }
     pthread_mutex_lock(&ctx->mutex_connection_table);
-    HASH_ADD_KEYPTR(hh, ctx->connection_hash_table, connection->socket_num, connection);
+    HASH_ADD_INT(ctx->connection_hash_table, socket_num, connection);
     pthread_mutex_unlock(&ctx->mutex_connection_table);
     return SUCCESS;
 }

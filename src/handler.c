@@ -502,15 +502,16 @@ int handler_PART(context_handle ctx, user_handle user_info, message_handle msg)
     }
 
     int rv = leave_channel(channel, user_info->nick);
+    sds reply;
     switch (rv) {
     case 1:
-        sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :You're not on that channel\r\n",
-                ctx->server_host, ERR_NOTONCHANNEL, user_info->nick, channel_name);
+        chilog(INFO, "user %s not on channel %s", user_info->nick, channel_name);
+        reply = sdscatfmt(sdsempty(), ":%s %s %s %s :You're not on that channel\r\n", 
+            ctx->server_host, ERR_NOTONCHANNEL, user_info->nick, channel_name);
         return send_reply(reply, user_info, true);
     case 0:
     case 2:
         chilog(INFO, "handler_PART: notify all members: user %s leave channel %s", user_info->nick, channel_name);
-        sds reply;
         if (msg->longlast)
             reply = sdscatfmt(sdsempty(), ":%s!%s@%s PART %s :%s\r\n",
                     user_info->nick, user_info->username, user_info->client_host_name, channel_name, msg->params[1]);

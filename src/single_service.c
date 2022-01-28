@@ -11,6 +11,8 @@
 
 #define MAX_BUFFER_SIZE 512
 
+void free_data(worker_args *args);
+
 void *service_single_client(void *args)
 {
     // extract arguments

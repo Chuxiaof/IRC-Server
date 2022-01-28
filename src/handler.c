@@ -91,26 +91,30 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
 
 static int change_nick_name(context_handle ctx, user_handle user_info, char * new_nick_name){
     channel_handle temp_channel;
-    pthread_mutex_lock(&ctx->lock_channel_table);
+    //pthread_mutex_lock(&ctx->lock_channel_table);
     for(temp_channel=ctx->channel_hash_table; temp_channel!=NULL; temp_channel=temp_channel->hh.next){
         //go through each channel
-        pthread_mutex_lock(&temp_channel->mutex_member_table);
         //if the user is in this channel, then update the nick in this channel's member table 
+        chilog(INFO, "Looping channel......");
         if(already_on_channel(temp_channel, user_info->nick)){
+            chilog(INFO, "user is in indeed in this channel: %s!", temp_channel->name);
             membership_handle member;
+            //pthread_mutex_lock(&temp_channel->mutex_member_table);
             HASH_FIND_STR(temp_channel->member_table, user_info->nick, member);
             HASH_DEL(temp_channel->member_table, member);
             member->nick = new_nick_name;
             HASH_ADD_KEYPTR(hh, temp_channel->member_table, member->nick, strlen(member->nick), member);
+            //pthread_mutex_unlock(&temp_channel->mutex_member_table);
             char message[MAX_BUFFER_SIZE];
             sprintf(message, ":%s!%s@%s NICK %s\r\n", user_info->nick, user_info->username, user_info->client_host_name, new_nick_name);
             if(send_to_channel_members(ctx, temp_channel, message, NULL)==-1){
                 return -1;
             };
+            chilog(INFO, "already sent messages to members in the channel!");
         }
-        pthread_mutex_unlock(&temp_channel->mutex_member_table);
+        
     }
-    pthread_mutex_unlock(&ctx->lock_channel_table);
+    //pthread_mutex_unlock(&ctx->lock_channel_table);
     //update the nick name in global user_hash_tablex
     HASH_DEL(ctx->user_hash_table, user_info);
     user_info->nick = new_nick_name;
@@ -916,6 +920,11 @@ int send_reply(char *str, message_handle msg, user_handle user_info)
     if (str == NULL && msg == NULL)
     {
         chilog(ERROR, "Illegal input args for send_reply: both str and msg are NULL!");
+        exit(1);
+    }
+
+    if(user_info == NULL){
+        chilog(ERROR, "Illegal input args for send_reply: user_info is NULL!");
         exit(1);
     }
 

@@ -234,8 +234,10 @@ int send_to_channel_members(context_handle ctx, channel_handle channel, char *re
 {
     int count = 0;
     char **member_nicks = member_nicks_arr(channel, &count);
+    chilog(INFO, "number of channel mumber: %d", count);
     for (int i = 0; i < count; i++)
-    {
+    {   
+        chilog(INFO, "start sending message...");
         if((sender_nick!=NULL) &&(!strcmp(sender_nick, member_nicks[i]))){
             continue;
         }
@@ -243,7 +245,8 @@ int send_to_channel_members(context_handle ctx, channel_handle channel, char *re
         // TODO mutex, extract common functions
         HASH_FIND_STR(ctx->user_hash_table, member_nicks[i], usr);
         if ((!usr) || send_reply(reply, NULL, usr) == -1)
-        {
+        {   
+            chilog(INFO, "usr is NULL!");
             free(member_nicks);
             return -1;
         }

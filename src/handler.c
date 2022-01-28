@@ -11,7 +11,7 @@
 #include "log.h"
 #include "reply.h"
 #include "connection.h"
-#include "membership.h"
+#include "channel.h"
 
 #define MAX_BUFFER_SIZE 512
 
@@ -21,6 +21,7 @@ static bool can_register(user_handle user_info);
 static int check_registered(context_handle ctx, user_handle user_info);
 static int sendall(int s, char *buf, int *len);
 static int send_welcome(user_handle user_info, char *server_host_name);
+static int change_nick_name(context_handle ctx, user_handle user_info, char * new_nick_name);
 int send_reply(char *str, message_handle msg, user_handle user_info);
 
 int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg);
@@ -63,9 +64,10 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
     {
         // change nick
         // TODO: change relevant hashtable
-        HASH_DEL(ctx->user_hash_table, user_info);
-        user_info->nick = nick;
-        HASH_ADD_KEYPTR(hh, ctx->user_hash_table, nick, strlen(nick), user_info);
+        if(change_nick_name(ctx, user_info, nick)==-1){
+            pthread_mutex_unlock(&ctx->lock_user_table);
+            return -1;
+        }
         pthread_mutex_unlock(&ctx->lock_user_table);
         return 0;
     }
@@ -87,17 +89,33 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
     return 0;
 }
 
-static void change_nick_name(context_handle ctx, user_handle user_info, char * new_nick_name){
-    channel_handle temp;
-    for(temp=ctx->channel_hash_table; temp!=NULL; temp=temp->hh.next){
-        if(already_on_channel(temp, user_info->nick)){
-            membership_handle temp;
-            HASH_FIND_STR(temp)
+static int change_nick_name(context_handle ctx, user_handle user_info, char * new_nick_name){
+    channel_handle temp_channel;
+    pthread_mutex_lock(&ctx->lock_channel_table);
+    for(temp_channel=ctx->channel_hash_table; temp_channel!=NULL; temp_channel=temp_channel->hh.next){
+        //go through each channel
+        pthread_mutex_lock(&temp_channel->mutex_member_table);
+        //if the user is in this channel, then update the nick in this channel's member table 
+        if(already_on_channel(temp_channel, user_info->nick)){
+            membership_handle member;
+            HASH_FIND_STR(temp_channel->member_table, user_info->nick, member);
+            HASH_DEL(temp_channel->member_table, member);
+            member->nick = new_nick_name;
+            HASH_ADD_KEYPTR(hh, temp_channel->member_table, member->nick, strlen(member->nick), member);
             char message[MAX_BUFFER_SIZE];
             sprintf(message, ":%s!%s@%s NICK %s\r\n", user_info->nick, user_info->username, user_info->client_host_name, new_nick_name);
-            send_to_channel_members(ctx, temp, message, NULL);
+            if(send_to_channel_members(ctx, temp_channel, message, NULL)==-1){
+                return -1;
+            };
         }
+        pthread_mutex_unlock(&temp_channel->mutex_member_table);
     }
+    pthread_mutex_unlock(&ctx->lock_channel_table);
+    //update the nick name in global user_hash_tablex
+    HASH_DEL(ctx->user_hash_table, user_info);
+    user_info->nick = new_nick_name;
+    HASH_ADD_KEYPTR(hh, ctx->user_hash_table, user_info->nick, strlen(user_info->nick), user_info);
+    return 0;
 }
 
 int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)

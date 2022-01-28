@@ -36,8 +36,9 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
     if (msg->nparams < 1) {
         // ERR_NONICKNAMEGIVEN
         chilog(ERROR, "handler_NICK: no nickname given");
+        char *temp_nick = user_info->nick ? user_info->nick : "*";
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s :No nickname given\r\n",
-                ctx->server_host, ERR_NONICKNAMEGIVEN, user_info->nick || "*");
+                ctx->server_host, ERR_NONICKNAMEGIVEN, temp_nick);
         return send_reply(reply, user_info, true);
     }
 
@@ -68,7 +69,7 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
 
     if (user_info->registered) {
         if (affected_channel_count > 0) {
-            sds reply = sdscatfmt(sdsempty(), ":%s!%s@%s NICK %s\r\n", 
+            sds reply = sdscatfmt(sdsempty(), ":%s!%s@%s NICK :%s\r\n", 
                 old_nick, user_info->username, user_info->client_host_name, new_nick);
             for (int i = 0; i < affected_channel_count; i++) {
                 if (affected_channels[i] == NULL) {
@@ -353,7 +354,7 @@ int handler_QUIT(context_handle ctx, user_handle user_info, message_handle msg)
     int affected_channel_count;
     affected_channel = get_channels_user_on(ctx, user_info->nick, &affected_channel_count);
     if (affected_channel_count > 0) {
-        sds r_channel = sdscatfmt(sdsempty(), ":%s!%s@%s QUIT :%s",
+        sds r_channel = sdscatfmt(sdsempty(), ":%s!%s@%s QUIT :%s\r\n",
             user_info->nick, user_info->username, user_info->client_host_name, quit_msg);
         for (int i = 0; i < affected_channel_count; i++) {
             if (affected_channel[i] == NULL) {

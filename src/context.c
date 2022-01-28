@@ -2,7 +2,7 @@
 
 #include "log.h"
 
-channel_handle *update_nick_on_channel(context_handle ctx, char *nick, int *count);
+channel_handle *update_nick_on_channel(context_handle ctx, char *old_nick, char *new_nick, int *count);
 
 context_handle create_context(char *password) {
     context_handle ctx = calloc(1, sizeof(context_t));
@@ -140,27 +140,27 @@ int add_user_nick(context_handle ctx, char *nick, user_handle user) {
     return SUCCESS;
 }
 
-int update_user_nick(context_handle ctx, char *nick, user_handle user, channel_handle **arr, int *count) {
-    if (ctx == NULL || nick == NULL || sdslen(nick) < 1 || user == NULL) {
+int update_user_nick(context_handle ctx, char *new_nick, user_handle user_info, channel_handle **arr, int *count) {
+    if (ctx == NULL || new_nick == NULL || sdslen(new_nick) < 1 || user_info == NULL) {
         chilog(ERROR, "update_user_nick: empty params");
         return FAILURE;
     }
 
     user_handle temp = NULL;
     pthread_mutex_lock(&ctx->mutex_user_table);
-    HASH_FIND_STR(ctx->user_hash_table, nick, temp);
+    HASH_FIND_STR(ctx->user_hash_table, new_nick, temp);
     if (temp) {
-        chilog(INFO, "nick %s already in use", nick);
+        chilog(INFO, "nick %s already in use", new_nick);
         pthread_mutex_unlock(&ctx->mutex_user_table);
         return NICK_IN_USE;
     }
 
     // update user nick in channel first
-    *arr = update_nick_on_channel(ctx, nick, count);
+    *arr = update_nick_on_channel(ctx, user_info->nick, new_nick, count);
 
-    HASH_DEL(ctx->user_hash_table, user);
-    user->nick = sdscpylen(sdsempty(), nick, sdslen(nick));
-    HASH_ADD_KEYPTR(hh, ctx->user_hash_table, user->nick, sdslen(user->nick), user);
+    HASH_DEL(ctx->user_hash_table, user_info);
+    user_info->nick = sdscpylen(sdsempty(), new_nick, sdslen(new_nick));
+    HASH_ADD_KEYPTR(hh, ctx->user_hash_table, user_info->nick, sdslen(user_info->nick), user_info);
     pthread_mutex_unlock(&ctx->mutex_user_table);
     return SUCCESS;
 }
@@ -280,8 +280,8 @@ char **get_all_channel_names(context_handle ctx, int *count) {
     return arr;
 }
 
-channel_handle *update_nick_on_channel(context_handle ctx, char *nick, int *count) {
-    if (ctx == NULL || nick == NULL || sdslen(nick) < 1) {
+channel_handle *update_nick_on_channel(context_handle ctx, char *old_nick, char *new_nick, int *count) {
+    if (ctx == NULL || old_nick == NULL || sdslen(old_nick) < 1 || new_nick == NULL || sdslen(new_nick) < 1) {
         chilog(ERROR, "update_nick_on_channel: empty params");
         return NULL;
     }
@@ -292,10 +292,10 @@ channel_handle *update_nick_on_channel(context_handle ctx, char *nick, int *coun
 
     int i = 0;
     for (channel_handle cha = ctx->channel_hash_table; cha != NULL; cha = cha->hh.next) {
-        int rv = update_member_nick(cha, nick);
+        int rv = update_member_nick(cha, old_nick, new_nick);
         if (rv == 0) {
             // find a channel that user is on
-            chilog(INFO, "user %s on channel %s, need to notify members with new nick", nick, cha->name);
+            chilog(INFO, "user %s on channel %s, need to notify members with new nick", old_nick, cha->name);
             arr[i++] = cha;
         } else if (rv == -1) {
             // error occurs

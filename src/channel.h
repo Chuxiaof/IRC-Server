@@ -50,7 +50,7 @@ int leave_channel(channel_handle channel, char *nick);
 // 0: success
 // -1: error
 // 1: not on channel
-int update_member_nick(channel_handle channel, char *nick);
+int update_member_nick(channel_handle channel, char *old_nick, char *new_nick);
 
 
 int channel_member_count(channel_handle channel);

@@ -103,20 +103,21 @@ int leave_channel(channel_handle channel, char *nick)
     return count == 0 ? 2 : 0;
 }
 
-int update_member_nick(channel_handle channel, char *nick) {
-    if (channel == NULL || nick == NULL || sdslen(nick) < 1) {
+int update_member_nick(channel_handle channel, char *old_nick, char *new_nick) {
+    if (channel == NULL || old_nick == NULL || sdslen(old_nick) < 1 || new_nick == NULL || sdslen(new_nick) < 1) {
         chilog(ERROR, "update_member_nick: empty params");
         return -1;
     }
+
     membership_handle member = NULL;
     pthread_mutex_lock(&channel->mutex_member_table);
-    HASH_FIND_STR(channel->member_table, nick, member);
+    HASH_FIND_STR(channel->member_table, old_nick, member);
     if (!member) {
         pthread_mutex_unlock(&channel->mutex_member_table);
         return 1;
     }
     HASH_DEL(channel->member_table, member);
-    member->nick = sdscpylen(sdsempty(), nick, sdslen(nick));
+    member->nick = sdscpylen(sdsempty(), new_nick, sdslen(new_nick));
     HASH_ADD_KEYPTR(hh, channel->member_table, member->nick, sdslen(member->nick), member);
     pthread_mutex_unlock(&channel->mutex_member_table);
     return 0;

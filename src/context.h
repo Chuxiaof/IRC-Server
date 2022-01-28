@@ -55,7 +55,7 @@ int *count_connection_state(context_handle ctx);
 // user
 int add_user_nick(context_handle ctx, char *nick, user_handle user);
 
-int update_user_nick(context_handle ctx, char *nick, user_handle user, channel_handle **arr, int *count);
+int update_user_nick(context_handle ctx, char *new_nick, user_handle user_info, channel_handle **arr, int *count);
 
 user_handle get_user(context_handle ctx, char *nick);
 

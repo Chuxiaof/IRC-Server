@@ -8,6 +8,10 @@
 #include <user.h>
 #include "membership.h"
 
+struct context_t;
+typedef struct context_t context_t;
+typedef context_t * context_handle;
+
 struct channel_t {
     char *name;
 
@@ -65,7 +69,7 @@ int update_member_mode(channel_handle channel, char *nick, char *mode);
 //-1: error
 //send message(reply) to all the members in the channel except the sender itself
 // if there's no need to exclude the sender, set sender_nick argument as NULL
-int send_to_channel_members(user_handle *hash_table, channel_handle channel, char *reply, char * sender_nick);
+int send_to_channel_members(context_handle ctx, channel_handle channel, char *reply, char * sender_nick);
 
 
 #endif

@@ -73,6 +73,8 @@ void *service_single_client(void *args)
                 {
                     // if there's an error during processing this command, then kill this thread
                     close(user_info->client_fd);
+                    free(wa->ctx);
+                    free(wa->user_info);
                     free(wa);
 
                     // Delete this user from hash table

@@ -11,6 +11,7 @@
 #include "log.h"
 #include "reply.h"
 #include "connection.h"
+#include "membership.h"
 
 #define MAX_BUFFER_SIZE 512
 
@@ -84,6 +85,19 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
 
     pthread_mutex_unlock(&ctx->lock_user_table);
     return 0;
+}
+
+static void change_nick_name(context_handle ctx, user_handle user_info, char * new_nick_name){
+    channel_handle temp;
+    for(temp=ctx->channel_hash_table; temp!=NULL; temp=temp->hh.next){
+        if(already_on_channel(temp, user_info->nick)){
+            membership_handle temp;
+            HASH_FIND_STR(temp)
+            char message[MAX_BUFFER_SIZE];
+            sprintf(message, ":%s!%s@%s NICK %s\r\n", user_info->nick, user_info->username, user_info->client_host_name, new_nick_name);
+            send_to_channel_members(ctx, temp, message, NULL);
+        }
+    }
 }
 
 int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
@@ -215,7 +229,7 @@ int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle ms
     sprintf(channel_message, ":%s!%s@%s PRIVMSG %s :%s\r\n",
                 user_info->nick, user_info->username, user_info->client_host_name,
                 target_name, msg->params[msg->nparams - 1]);
-    return send_to_channel_members(&(ctx->user_hash_table), target_channel, channel_message, user_info->nick);
+    return send_to_channel_members(ctx, target_channel, channel_message, user_info->nick);
 }
 
 int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg)
@@ -299,7 +313,7 @@ int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg
     sprintf(channel_message, ":%s!%s@%s NOTICE %s :%s\r\n",
                 user_info->nick, user_info->username, user_info->client_host_name,
                 target_name, msg->params[msg->nparams - 1]);
-    return send_to_channel_members(&(ctx->user_hash_table), target_channel, channel_message, user_info->nick);
+    return send_to_channel_members(ctx, target_channel, channel_message, user_info->nick);
 }
 
 int handler_PING(context_handle ctx, user_handle user_info, message_handle msg)
@@ -564,7 +578,7 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
         //     }
         // }
         // free(member_nicks);
-        if(send_to_channel_members(&(ctx->user_hash_table), channel, reply, NULL)==-1){
+        if(send_to_channel_members(ctx, channel, reply, NULL)==-1){
             return -1;
         }
         break;
@@ -783,7 +797,7 @@ int handler_MODE(context_handle ctx, user_handle user_info, message_handle msg)
         }
         char mode_msg[MAX_BUFFER_SIZE];
         sprintf(mode_msg, ":%s!%s@%s MODE %s %s %s\r\n", user_info->nick, user_info->username, user_info->client_host_name,channel_name, mode_name, target_nick);
-        return send_to_channel_members(&(ctx->user_hash_table), channel, mode_msg, NULL);
+        return send_to_channel_members(ctx, channel, mode_msg, NULL);
     }
     else
     {

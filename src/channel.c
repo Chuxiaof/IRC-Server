@@ -1,6 +1,7 @@
 #include "channel.h"
 #include "log.h"
 #include "handler.h"
+#include "context.h"
 
 channel_handle create_channel(char *name)
 {
@@ -229,7 +230,7 @@ int update_member_mode(channel_handle channel, char *nick, char *mode)
     return 2;
 }
 
-int send_to_channel_members(user_handle *hash_table, channel_handle channel, char *reply, char * sender_nick)
+int send_to_channel_members(context_handle ctx, channel_handle channel, char *reply, char * sender_nick)
 {
     int count = 0;
     char **member_nicks = member_nicks_arr(channel, &count);
@@ -240,7 +241,7 @@ int send_to_channel_members(user_handle *hash_table, channel_handle channel, cha
         }
         user_handle usr = NULL;
         // TODO mutex, extract common functions
-        HASH_FIND_STR(*hash_table, member_nicks[i], usr);
+        HASH_FIND_STR(ctx->user_hash_table, member_nicks[i], usr);
         if ((!usr) || send_reply(reply, NULL, usr) == -1)
         {
             free(member_nicks);

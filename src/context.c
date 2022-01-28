@@ -195,7 +195,7 @@ int get_channel_count(context_handle ctx) {
     }
     pthread_mutex_lock(&ctx->mutex_channel_table);
     unsigned int count = HASH_COUNT(ctx->channel_hash_table);
-    pthread_mutex_lock(&ctx->mutex_channel_table);
+    pthread_mutex_unlock(&ctx->mutex_channel_table);
     return ((int) count);
 }
 

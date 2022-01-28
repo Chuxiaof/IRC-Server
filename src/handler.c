@@ -264,6 +264,7 @@ int handler_PING(context_handle ctx, user_handle user_info, message_handle msg)
     }
 
     sds reply = sdscatfmt(sdsempty(), "PONG %s\r\n", ctx->server_host);
+    chilog(INFO, "%s", reply);
     return send_reply(reply, user_info, true);
 }
 
@@ -381,35 +382,35 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
     int *count = count_connection_state(ctx);
 
     // TODO: change the parameters for op and channel
-    sds r_luser_client = sdscatfmt(sdsempty(), ":%s %s %s :There are %d users and %d services on %d servers\r\n",
+    sds r_luser_client = sdscatfmt(sdsempty(), ":%s %s %s :There are %i users and %i services on %i servers\r\n",
             ctx->server_host, RPL_LUSERCLIENT, user_info->nick, count[2], 0, 1);
 
     if (send_reply(r_luser_client, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
-    sds r_luser_op = sdscatfmt(sdsempty(), ":%s %s %s %d :operator(s) online\r\n",
+    sds r_luser_op = sdscatfmt(sdsempty(), ":%s %s %s %i :operator(s) online\r\n",
             ctx->server_host, RPL_LUSEROP, user_info->nick, ctx->irc_op_num);
 
     if (send_reply(r_luser_op, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
-    sds r_luser_unknown = sdscatfmt(sdsempty(), ":%s %s %s %d :unknown connection(s)\r\n",
+    sds r_luser_unknown = sdscatfmt(sdsempty(), ":%s %s %s %i :unknown connection(s)\r\n",
             ctx->server_host, RPL_LUSERUNKNOWN, user_info->nick, count[0]);
 
     if (send_reply(r_luser_unknown, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
-    sds r_luser_channels = sdscatfmt(sdsempty(), ":%s %s %s %d :channels formed\r\n",
+    sds r_luser_channels = sdscatfmt(sdsempty(), ":%s %s %s %i :channels formed\r\n",
             ctx->server_host, RPL_LUSERCHANNELS, user_info->nick, get_channel_count(ctx));
 
     if (send_reply(r_luser_channels, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
-    sds r_luser_me = sdscatfmt(sdsempty(), ":%s %s %s :I have %d clients and %d servers\r\n",
+    sds r_luser_me = sdscatfmt(sdsempty(), ":%s %s %s :I have %i clients and %i servers\r\n",
             ctx->server_host, RPL_LUSERME, user_info->nick, count[1], 1);
 
     if (send_reply(r_luser_me, user_info, true) == FAILURE) {
@@ -722,7 +723,7 @@ int notify_all_channel_members(context_handle ctx, channel_handle channel, char 
 {
     int count = 0;
     char **member_nicks = member_nicks_arr(channel, &count);
-    chilog(INFO, "number of channel mumber: %d", count);
+    chilog(INFO, "number of channel mumber: %i", count);
     for (int i = 0; i < count; i++) {
         if(sender_nick != NULL && sdscmp(sender_nick, member_nicks[i]) == 0) {
             // skip sender

@@ -103,7 +103,8 @@ int leave_channel(channel_handle channel, char *nick)
     return count == 0 ? 2 : 0;
 }
 
-int update_member_nick(channel_handle channel, char *old_nick, char *new_nick) {
+int update_member_nick(channel_handle channel, char *old_nick, char *new_nick)
+{
     if (channel == NULL || old_nick == NULL || sdslen(old_nick) < 1 || new_nick == NULL || sdslen(new_nick) < 1) {
         chilog(ERROR, "update_member_nick: empty params");
         return -1;

@@ -75,7 +75,8 @@ void *service_single_client(void *args)
     }
 }
 
-void free_data(worker_args *args) {
+void free_data(worker_args *args)
+{
     delete_connection(args->ctx, args->user_info->client_fd);
     delete_user(args->ctx, args->user_info);
     destroy_user(args->user_info);

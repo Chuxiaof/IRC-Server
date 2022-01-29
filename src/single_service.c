@@ -13,6 +13,7 @@
 
 void free_data(worker_args *args);
 
+/* see single_service.h */
 void *service_single_client(void *args)
 {
     // extract arguments
@@ -57,7 +58,8 @@ void *service_single_client(void *args)
                 }
                 message_from_string(msg, command);
                 if (process_cmd(ctx, user_info, msg) == -1) {
-                    // if there's an error during processing this command, then kill this thread
+                    // if there's an error during processing this command , then kill this thread
+                    // if receive "QUIT", also kill th thread
                     close(user_info->client_fd);
                     free_data(wa);
                     pthread_exit(NULL);

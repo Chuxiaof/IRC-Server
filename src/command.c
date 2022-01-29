@@ -31,6 +31,7 @@ static struct handler_entry handler_entries[] = {
 
 int handlers_num = sizeof(handler_entries) / sizeof(struct handler_entry);
 
+/* see command.h */
 int process_cmd(context_handle ctx, user_handle user_info, message_handle msg)
 {
     int i;

@@ -125,7 +125,10 @@ int message_add_parameter(message_handle msg, char *param, bool longlast)
 
 int message_destroy(message_handle msg)
 {
-    // TODO
+    sdsfree(msg->prefix);
+    sdsfree(msg->cmd);
+    for (int i = 0; i < msg->nparams; i++)
+        sdsfree(msg->params[i]);
     return 0;
 }
 

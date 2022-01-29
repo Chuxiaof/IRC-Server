@@ -64,6 +64,8 @@
 #define MAX_BUFFER_SIZE 512
 #define HOST_NAME_LENGTH 1024
 
+void start_server(char *port, char * passwd, char * servername, char * network_file);
+
 int main(int argc, char *argv[])
 {
     // process command line arguments
@@ -143,6 +145,23 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
+    start_server(port, passwd, servername, network_file);
+
+    return EXIT_SUCCESS;
+}
+
+
+
+/**
+ * @Start the server, set socket functions and accept client requests
+ * Serve as a bridge between server process and a user thread
+ *
+ * @param port 
+ * @param passwd 
+ * @param servername 
+ * @param network_file 
+ */
+void start_server(char *port, char * passwd, char * servername, char * network_file){
     // socket
     int server_fd, client_fd;
 
@@ -217,7 +236,7 @@ int main(int argc, char *argv[])
 
         if ((client_fd = accept(server_fd, (struct sockaddr *)client_addr, &sin_size)) == -1) {
             free(client_addr);
-            chilog(INFO, "Could not accept connection");
+            chilog(ERROR, "Could not accept connection");
             continue;
         }
 
@@ -239,7 +258,7 @@ int main(int argc, char *argv[])
         } else {
             getnameinfo((struct sockaddr *)client_addr, sin_size, client_host_name, HOST_NAME_LENGTH,
                         NULL, 0, 0);
-            chilog(INFO, "client host name: %s", client_host_name);
+            chilog(DEBUG, "client host name: %s", client_host_name);
             user_info->client_host_name = client_host_name;
         }
 
@@ -258,6 +277,4 @@ int main(int argc, char *argv[])
     }
 
     close(server_fd);
-
-    return 0;
 }

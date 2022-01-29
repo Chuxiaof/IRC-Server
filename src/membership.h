@@ -3,8 +3,15 @@
 
 #include <uthash.h>
 
+/**
+ * @brief this struct is used to represent the relationship
+ * between channel and user, nick is the nick of the user, is_channel_operator denotes 
+ * whether a user is an operator of current channel, a channel will maintain a hashmap
+ * of membership_t to store all users on this channel
+ * 
+ */
 struct membership_t {
-    char * nick;
+    char * nick;    // key
 
     bool is_channel_operator;
     

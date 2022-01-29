@@ -26,9 +26,10 @@ user_handle create_user()
 void destroy_user(user_handle user)
 {
     if (user != NULL) {
-        // TODO
-        // depend on the implementation of char *
-        // string.h or sds
+        sdsfree(user->nick);
+        sdsfree(user->username);
+        sdsfree(user->fullname);
+        free(user->client_host_name);
     }
     free(user);
 }

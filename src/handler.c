@@ -17,25 +17,71 @@
 
 #define SUFFICIENT 1
 #define INSUFFICIENT 2
+
+/**
+ * @brief a helper function that check whether the number of arguments is sufficient
+ * 
+ * @param have how many args the command has
+ * @param target how many args the command should have
+ * @param cmd the name of command e.g. NICK, QUIT...
+ * @param user_info 
+ * @param ctx  global context
+ * @return three possible outcomes: 1: SUFFICIENT, 2: INSUFFICIENT, -1: FAILURE
+ */
 static int check_insufficient_param(int have, int target, char *cmd, user_handle user_info, context_handle ctx);
 
 #define REGISTERED 3
 #define NOTREGISTERED 4
+/**
+ * @brief a helper function checking whether the user has registered
+ * 
+ * @param ctx global context
+ * @param user_info struct that stores user relevant information 
+ * @return int 3: REGISTERED 4: NOTREGISTERED
+ */
 static int check_registered(context_handle ctx, user_handle user_info);
 
+/**
+ * @brief a helper function in charge of sending replies or error messages to the client side
+ * This function ensures that send() does send the whole message successfully
+ * @param str message to be sent
+ * @param user_info struct that stores user relevant information 
+ * @param to_free whether the str needs to be freed
+ * @return int -1: FAILURE 0: SUCCESS
+ */
 int send_reply(char *str, user_handle user_info, bool to_free);
 
+/**
+ * @brief a helper function designed specially for "NICK" and "USER" to send welcome message
+ * 
+ * @param user_info 
+ * @param server_host_name hostname of the machine that our server resides on 
+ * @return int -1: FAILURE 1:SUCCESS
+ */
 static int send_welcome(user_handle user_info, char *server_host_name);
 
-// send message(reply) to all the members in the channel except the sender itself
-// if there's no need to exclude the sender, set sender_nick argument as NULL
+/**
+ * @brief send message(reply) to all the members in the channel except the sender itself
+ * if there's no need to exclude the sender, set sender_nick argument as NULL
+ * @param ctx global context
+ * @param channel broadcast message to this channel
+ * @param reply the content of the message
+ * @param sender_nick nick name of the sender
+ * @return int -1: FAILURE 1: SUCCESS
+ */
 int notify_all_channel_members(context_handle ctx, channel_handle channel, char *reply, char * sender_nick);
+
+
+/*
+Below are handler functions
+*/
+
 
 int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
 {
     if (msg->nparams < 1) {
         // ERR_NONICKNAMEGIVEN
-        chilog(ERROR, "handler_NICK: no nickname given");
+        chilog(WARNING, "handler_NICK: no nickname given");
         char *temp_nick = user_info->nick ? user_info->nick : "*";
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s :No nickname given\r\n",
                 ctx->server_host, ERR_NONICKNAMEGIVEN, temp_nick);
@@ -55,7 +101,7 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
     switch (rv)
     {
     case NICK_IN_USE:
-        chilog(INFO, "nick %s already in use", new_nick);
+        chilog(WARNING, "nick %s already in use", new_nick);
         char *temp_nick = user_info->nick ? user_info->nick : "*";
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :Nickname is already in use\r\n",
                 ctx->server_host, ERR_NICKNAMEINUSE, temp_nick, new_nick);
@@ -97,6 +143,8 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
     return SUCCESS;
 }
 
+
+
 int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
 {
     if (user_info->registered) {
@@ -107,7 +155,7 @@ int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
 
     int ret = check_insufficient_param(msg->nparams, 4, "USER", user_info, ctx);
     if (ret == INSUFFICIENT) {
-        chilog(INFO, "handler_USER: insufficient params");
+        chilog(WARNING, "handler_USER: insufficient params");
         return SUCCESS;
     } else if (ret == FAILURE) {
         chilog(ERROR, "handler_USER: error in sending insufficient params reply");
@@ -134,6 +182,9 @@ int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
 
     return SUCCESS;
 }
+
+
+
 
 int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle msg)
 {
@@ -203,6 +254,10 @@ int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle ms
     return SUCCESS;
 }
 
+
+
+
+
 int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg)
 {
     int ret = check_registered(ctx, user_info);
@@ -236,7 +291,6 @@ int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg
         sds reply = sdscatfmt(sdsempty(), ":%s!%s@%s NOTICE %s :%s\r\n",
                 user_info->nick, user_info->username, user_info->client_host_name,
                 target_name, msg->params[msg->nparams - 1]);
-        chilog(INFO, "%s sends an message to %s", user_info->nick, target_user->nick);
         return send_reply(reply, target_user, true);
     }
 
@@ -257,6 +311,11 @@ int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg
     return SUCCESS;
 }
 
+
+
+
+
+
 int handler_PING(context_handle ctx, user_handle user_info, message_handle msg)
 {
     int ret = check_registered(ctx, user_info);
@@ -265,7 +324,6 @@ int handler_PING(context_handle ctx, user_handle user_info, message_handle msg)
     }
 
     sds reply = sdscatfmt(sdsempty(), "PONG %s\r\n", ctx->server_host);
-    chilog(INFO, "%s", reply);
     return send_reply(reply, user_info, true);
 }
 
@@ -275,8 +333,6 @@ int handler_PONG(context_handle ctx, user_handle user_info, message_handle msg)
     if (ret != REGISTERED) {
         return ret;
     }
-
-    chilog(INFO, "receive PONG from %s", user_info->client_host_name);
     // do nothing
     return SUCCESS;
 }
@@ -326,6 +382,8 @@ int handler_WHOIS(context_handle ctx, user_handle user_info, message_handle msg)
     return send_reply(r_end, user_info, true);
 }
 
+
+
 int handler_UNKNOWNCOMMAND(context_handle ctx, user_handle user_info, message_handle msg)
 {
     if (!user_info->registered) {
@@ -337,6 +395,7 @@ int handler_UNKNOWNCOMMAND(context_handle ctx, user_handle user_info, message_ha
             ctx->server_host, ERR_UNKNOWNCOMMAND, user_info->nick, msg->cmd);
     return send_reply(reply, user_info, true);
 }
+
 
 int handler_QUIT(context_handle ctx, user_handle user_info, message_handle msg)
 {
@@ -371,6 +430,8 @@ int handler_QUIT(context_handle ctx, user_handle user_info, message_handle msg)
     send_reply(reply, user_info, true);
     return FAILURE;
 }
+
+
 
 int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg)
 {
@@ -426,6 +487,8 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
     return send_reply(r_nomotd, user_info, true);
 }
 
+
+
 int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
 {
     int ret = check_registered(ctx, user_info);
@@ -448,7 +511,7 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
     // send reply
     switch (rv) {
     case 0:
-        chilog(INFO, "user %s joined channel %s", user_info->nick, name);
+        chilog(DEBUG, "user %s joined channel %s", user_info->nick, name);
         // notify all users :nick!user@10.150.42.58 JOIN #test
         sds r_join = sdscatfmt(sdsempty(), ":%s!%s@%s JOIN %s\r\n",
                 user_info->nick, user_info->username, user_info->client_host_name, name);
@@ -456,15 +519,13 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
         sdsfree(r_join);
         break;
     case 1:
-        chilog(INFO, "handler_JOIN: ignored, user %s already on channel %s", user_info->nick, channel->name);
+        chilog(DEBUG, "handler_JOIN: ignored, user %s already on channel %s", user_info->nick, channel->name);
         return SUCCESS;
     default:
         chilog(CRITICAL, "handler_JOIN: unanticipated error");
         return FAILURE;
     }
 
-    // skip RPL_TOPIC
-    // :frost 353 nick = test :@nick
     sds all_nicks = member_nicks_str(channel);
     sds r_name = sdscatfmt(sdsempty(), ":%s %s %s = %s :@%s\r\n",
             ctx->server_host, RPL_NAMREPLY, user_info->nick, name, all_nicks);
@@ -474,7 +535,6 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
     }
     sdsfree(all_nicks);
 
-    // :hostname 366 nick #foobar :End of NAMES list
     sds r_end = sdscatfmt(sdsempty(), ":%s %s %s %s :End of NAMES list\r\n",
             ctx->server_host, RPL_ENDOFNAMES, user_info->nick, name);
     return send_reply(r_end, user_info, true);
@@ -509,13 +569,11 @@ int handler_PART(context_handle ctx, user_handle user_info, message_handle msg)
     sds reply;
     switch (rv) {
     case 1:
-        chilog(INFO, "user %s not on channel %s", user_info->nick, channel_name);
         reply = sdscatfmt(sdsempty(), ":%s %s %s %s :You're not on that channel\r\n", 
             ctx->server_host, ERR_NOTONCHANNEL, user_info->nick, channel_name);
         return send_reply(reply, user_info, true);
     case 0:
     case 2:
-        chilog(INFO, "handler_PART: notify all members: user %s leave channel %s", user_info->nick, channel_name);
         if (msg->longlast)
             reply = sdscatfmt(sdsempty(), ":%s!%s@%s PART %s :%s\r\n",
                     user_info->nick, user_info->username, user_info->client_host_name, channel_name, msg->params[1]);
@@ -543,7 +601,6 @@ int handler_PART(context_handle ctx, user_handle user_info, message_handle msg)
 
     if (rv == 2) {
         // delete this channel
-        chilog(INFO, "delete channel %s from context", channel_name);
         HASH_DEL(ctx->channel_hash_table, channel);
     }
 
@@ -724,7 +781,6 @@ int notify_all_channel_members(context_handle ctx, channel_handle channel, char 
 {
     int count = 0;
     char **member_nicks = member_nicks_arr(channel, &count);
-    chilog(INFO, "number of channel mumber: %i", count);
     for (int i = 0; i < count; i++) {
         if(sender_nick != NULL && sdscmp(sender_nick, member_nicks[i]) == 0) {
             // skip sender
@@ -746,7 +802,7 @@ int notify_all_channel_members(context_handle ctx, channel_handle channel, char 
 }
 
 // This chunk of code is from Beej, thanks for Beej!
-// Ensure that we send all we want to send succgessfully
+// Ensure that we send all we want to send successfully
 static int sendall(int s, char *buf, int *len)
 {
     int total = 0;        // how many bytes we've sent

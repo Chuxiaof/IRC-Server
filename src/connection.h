@@ -17,8 +17,19 @@ typedef struct connection_t connection_t;
 
 typedef connection_t * connection_handle;
 
+/**
+ * @brief Create a connection object
+ * 
+ * @param socket_num 
+ * @return connection_handle 
+ */
 connection_handle create_connection(int socket_num);
 
+/**
+ * @brief free the memory of a connection object
+ * 
+ * @param connection 
+ */
 void destroy_connection(connection_handle connection);
 
 #endif

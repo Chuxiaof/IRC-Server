@@ -20,7 +20,14 @@ channel_handle create_channel(char *name)
 void destroy_channel(channel_handle channel)
 {
     if (channel != NULL) {
-        // TODO
+        sdsfree(channel->name);
+        membership_handle next;
+        membership_handle cur = channel->member_table;
+        while (cur != NULL) {
+            next = cur->hh.next;
+            free(cur);
+            cur = next;
+        }
     }
     free(channel);
 }

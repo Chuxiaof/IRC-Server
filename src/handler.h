@@ -5,6 +5,10 @@
 #include "user.h"
 #include "message.h"
 
+/*
+Below are all handler functions corresponding to different client-side commands
+*/
+
 int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg);
 
 int handler_USER(context_handle ctx, user_handle user_info, message_handle msg);

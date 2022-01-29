@@ -2,6 +2,17 @@
 
 #include "log.h"
 
+/**
+ * @brief update nick of user stored in channel object
+ *        also return an array of affected channels so that
+ *        caller can notify these channels
+ * 
+ * @param ctx 
+ * @param old_nick 
+ * @param new_nick 
+ * @param count: to store the number of affected channels
+ * @return channel_handle*: an array of channels 
+ */
 channel_handle *update_nick_on_channel(context_handle ctx, char *old_nick, char *new_nick, int *count);
 
 context_handle create_context(char *password) {
@@ -24,7 +35,32 @@ context_handle create_context(char *password) {
 
 void destroy_context(context_handle ctx) {
     if (ctx != NULL) {
-        // TODO
+        sdsfree(ctx->server_host);
+        sdsfree(ctx->password);
+
+        user_handle next_user;
+        user_handle cur_user = ctx->user_hash_table;
+        while (cur_user != NULL) {
+            next_user = cur_user->hh.next;
+            destroy_user(cur_user);
+            cur_user = next_user;
+        }
+
+        connection_handle next_connection;
+        connection_handle cur_connection = ctx->connection_hash_table;
+        while (cur_connection != NULL) {
+            next_connection = cur_connection->hh.next;
+            destroy_connection(cur_connection);
+            cur_connection = next_connection;
+        }
+
+        channel_handle next_channel;
+        channel_handle cur_channel = ctx->channel_hash_table;
+        while (cur_channel != NULL) {
+            next_channel = cur_channel->hh.next;
+            destroy_channel(cur_channel);
+            cur_channel = next_channel;
+        }
     }
     free(ctx);
 }

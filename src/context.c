@@ -15,7 +15,8 @@
  */
 channel_handle *update_nick_on_channel(context_handle ctx, char *old_nick, char *new_nick, int *count);
 
-context_handle create_context(char *password) {
+context_handle create_context(char *password)
+{
     context_handle ctx = calloc(1, sizeof(context_t));
     if (ctx == NULL) {
         chilog(CRITICAL, "create_context: fail to allocate new memory");
@@ -33,7 +34,8 @@ context_handle create_context(char *password) {
     return ctx;
 }
 
-void destroy_context(context_handle ctx) {
+void destroy_context(context_handle ctx)
+{
     if (ctx != NULL) {
         sdsfree(ctx->server_host);
         sdsfree(ctx->password);
@@ -65,7 +67,8 @@ void destroy_context(context_handle ctx) {
     free(ctx);
 }
 
-int increase_op_num(context_handle ctx) {
+int increase_op_num(context_handle ctx)
+{
     if (ctx == NULL) {
         chilog(ERROR, "increase_op_num: empty params");
         return FAILURE;
@@ -76,7 +79,8 @@ int increase_op_num(context_handle ctx) {
     return SUCCESS;
 }
 
-int add_connection(context_handle ctx, connection_handle connection) {
+int add_connection(context_handle ctx, connection_handle connection)
+{
     if (ctx == NULL || connection == NULL) {
         chilog(ERROR, "add_connection: empty params");
         return FAILURE;
@@ -87,7 +91,8 @@ int add_connection(context_handle ctx, connection_handle connection) {
     return SUCCESS;
 }
 
-int modify_connection_state(context_handle ctx, int id, int state) {
+int modify_connection_state(context_handle ctx, int id, int state)
+{
     if (ctx == NULL) {
         chilog(ERROR, "modify_connection_state: empty params");
         return FAILURE;
@@ -115,7 +120,8 @@ int modify_connection_state(context_handle ctx, int id, int state) {
     return SUCCESS;
 }
 
-int delete_connection(context_handle ctx, int socket_num) {
+int delete_connection(context_handle ctx, int socket_num)
+{
     if (ctx == NULL) {
         chilog(ERROR, "delete_connection: empty params");
         return FAILURE;
@@ -130,7 +136,8 @@ int delete_connection(context_handle ctx, int socket_num) {
     return SUCCESS;
 }
 
-int *count_connection_state(context_handle ctx) {
+int *count_connection_state(context_handle ctx)
+{
     if (ctx == NULL) {
         chilog(ERROR, "count_connection_state: empty params");
         return NULL;
@@ -155,7 +162,8 @@ int *count_connection_state(context_handle ctx) {
     return res;
 }
 
-int add_user_nick(context_handle ctx, char *nick, user_handle user) {
+int add_user_nick(context_handle ctx, char *nick, user_handle user)
+{
     chilog(INFO, "add user nick");
     if (ctx == NULL || nick == NULL || sdslen(nick) < 1 || user == NULL) {
         chilog(ERROR, "add_user_nick: empty params");
@@ -176,7 +184,8 @@ int add_user_nick(context_handle ctx, char *nick, user_handle user) {
     return SUCCESS;
 }
 
-int update_user_nick(context_handle ctx, char *new_nick, user_handle user_info, channel_handle **arr, int *count) {
+int update_user_nick(context_handle ctx, char *new_nick, user_handle user_info, channel_handle **arr, int *count)
+{
     if (ctx == NULL || new_nick == NULL || sdslen(new_nick) < 1 || user_info == NULL) {
         chilog(ERROR, "update_user_nick: empty params");
         return FAILURE;
@@ -201,7 +210,8 @@ int update_user_nick(context_handle ctx, char *new_nick, user_handle user_info, 
     return SUCCESS;
 }
 
-user_handle get_user(context_handle ctx, char *nick) {
+user_handle get_user(context_handle ctx, char *nick)
+{
     if (ctx == NULL || nick == NULL || sdslen(nick) < 1) {
         chilog(ERROR, "get_user: empty params");
         return NULL;
@@ -213,7 +223,8 @@ user_handle get_user(context_handle ctx, char *nick) {
     return user;
 }
 
-int delete_user(context_handle ctx, user_handle user) {
+int delete_user(context_handle ctx, user_handle user)
+{
     if (ctx == NULL || user == NULL) {
         chilog(ERROR, "delete_user: empty params");
         return FAILURE;
@@ -224,7 +235,8 @@ int delete_user(context_handle ctx, user_handle user) {
     return SUCCESS;
 }
 
-int get_channel_count(context_handle ctx) {
+int get_channel_count(context_handle ctx)
+{
     if (ctx == NULL) {
         chilog(ERROR, "get_channel_count: empty params");
         return -1;
@@ -235,7 +247,8 @@ int get_channel_count(context_handle ctx) {
     return ((int) count);
 }
 
-channel_handle get_channel(context_handle ctx, char *name) {
+channel_handle get_channel(context_handle ctx, char *name)
+{
     if (ctx == NULL || name == NULL || sdslen(name) < 1) {
         chilog(ERROR, "get_channel: empty params");
         return NULL;
@@ -247,7 +260,8 @@ channel_handle get_channel(context_handle ctx, char *name) {
     return channel;
 }
 
-channel_handle try_get_channel(context_handle ctx, char *name, bool *is_creator) {
+channel_handle try_get_channel(context_handle ctx, char *name, bool *is_creator)
+{
     if (ctx == NULL || name == NULL || sdslen(name) < 1 || is_creator == NULL) {
         chilog(ERROR, "try_get_channel: empty params");
         return NULL;
@@ -268,7 +282,8 @@ channel_handle try_get_channel(context_handle ctx, char *name, bool *is_creator)
     return channel;
 }
 
-channel_handle *get_channels_user_on(context_handle ctx, char *nick, int *count) {
+channel_handle *get_channels_user_on(context_handle ctx, char *nick, int *count)
+{
     if (ctx == NULL || nick == NULL || sdslen(nick) < 1 || count == NULL) {
         chilog(ERROR, "get_channels_user_on: empty params");
         return NULL;
@@ -292,7 +307,8 @@ channel_handle *get_channels_user_on(context_handle ctx, char *nick, int *count)
     return arr;
 }
 
-char **get_all_channel_names(context_handle ctx, int *count) {
+char **get_all_channel_names(context_handle ctx, int *count)
+{
     if (ctx == NULL || count == NULL) {
         chilog(ERROR, "get_all_channel_names: empty params");
         return NULL;
@@ -316,7 +332,8 @@ char **get_all_channel_names(context_handle ctx, int *count) {
     return arr;
 }
 
-channel_handle *update_nick_on_channel(context_handle ctx, char *old_nick, char *new_nick, int *count) {
+channel_handle *update_nick_on_channel(context_handle ctx, char *old_nick, char *new_nick, int *count)
+{
     if (ctx == NULL || old_nick == NULL || sdslen(old_nick) < 1 || new_nick == NULL || sdslen(new_nick) < 1) {
         chilog(ERROR, "update_nick_on_channel: empty params");
         return NULL;

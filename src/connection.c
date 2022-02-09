@@ -14,6 +14,7 @@ connection_handle create_connection(int socket_num)
     return res;
 }
 
-void destroy_connection(connection_handle connection) {
+void destroy_connection(connection_handle connection)
+{
     free(connection);
 }

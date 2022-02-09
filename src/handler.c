@@ -84,7 +84,7 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
         chilog(WARNING, "handler_NICK: no nickname given");
         char *temp_nick = user_info->nick ? user_info->nick : "*";
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s :No nickname given\r\n",
-                ctx->server_host, ERR_NONICKNAMEGIVEN, temp_nick);
+                              ctx->server_host, ERR_NONICKNAMEGIVEN, temp_nick);
         return send_reply(reply, user_info, true);
     }
 
@@ -94,17 +94,16 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
     channel_handle *affected_channels;
     int affected_channel_count;
 
-    int rv = user_info->registered ? 
-        update_user_nick(ctx, new_nick, user_info, &affected_channels, &affected_channel_count) :
-        add_user_nick(ctx, new_nick, user_info);
+    int rv = user_info->registered ?
+             update_user_nick(ctx, new_nick, user_info, &affected_channels, &affected_channel_count) :
+             add_user_nick(ctx, new_nick, user_info);
 
-    switch (rv)
-    {
+    switch (rv) {
     case NICK_IN_USE:
         chilog(WARNING, "nick %s already in use", new_nick);
         char *temp_nick = user_info->nick ? user_info->nick : "*";
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :Nickname is already in use\r\n",
-                ctx->server_host, ERR_NICKNAMEINUSE, temp_nick, new_nick);
+                              ctx->server_host, ERR_NICKNAMEINUSE, temp_nick, new_nick);
         return send_reply(reply, user_info, true);
     case FAILURE:
         chilog(ERROR, "error occurs for handler_NICK");
@@ -115,8 +114,8 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
 
     if (user_info->registered) {
         if (affected_channel_count > 0) {
-            sds reply = sdscatfmt(sdsempty(), ":%s!%s@%s NICK :%s\r\n", 
-                old_nick, user_info->username, user_info->client_host_name, new_nick);
+            sds reply = sdscatfmt(sdsempty(), ":%s!%s@%s NICK :%s\r\n",
+                                  old_nick, user_info->username, user_info->client_host_name, new_nick);
             for (int i = 0; i < affected_channel_count; i++) {
                 if (affected_channels[i] == NULL) {
                     chilog(WARNING, "handler_NICK: null channel");
@@ -148,8 +147,8 @@ int handler_NICK(context_handle ctx, user_handle user_info, message_handle msg)
 int handler_USER(context_handle ctx, user_handle user_info, message_handle msg)
 {
     if (user_info->registered) {
-        sds reply = sdscatfmt(sdsempty(), ":%s %s %s :Unauthorized command (already registered)\r\n", 
-            ctx->server_host, ERR_ALREADYREGISTRED, user_info->nick);
+        sds reply = sdscatfmt(sdsempty(), ":%s %s %s :Unauthorized command (already registered)\r\n",
+                              ctx->server_host, ERR_ALREADYREGISTRED, user_info->nick);
         return send_reply(reply, user_info, true);
     }
 
@@ -196,14 +195,14 @@ int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle ms
     if (msg->nparams < 1) {
         // ERR_NORECIPIENT
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s :No recipient given (PRIVMSG)\r\n",
-                ctx->server_host, ERR_NORECIPIENT, user_info->nick);
+                              ctx->server_host, ERR_NORECIPIENT, user_info->nick);
         return send_reply(reply, user_info, true);
     }
 
     if (!msg->longlast) {
         // ERR_NOTEXTTOSEND
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s :No text to send\r\n",
-                ctx->server_host, ERR_NOTEXTTOSEND, user_info->nick);
+                              ctx->server_host, ERR_NOTEXTTOSEND, user_info->nick);
         return send_reply(reply, user_info, true);
     }
 
@@ -223,15 +222,15 @@ int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle ms
     if (target_user == NULL && target_channel == NULL) {
         // ERR_NOSUCHNICK
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :No such nick/channel\r\n",
-                ctx->server_host, ERR_NOSUCHNICK, user_info->nick, target_name);
+                              ctx->server_host, ERR_NOSUCHNICK, user_info->nick, target_name);
         return send_reply(reply, user_info, true);
     }
 
     // if the name is a nick, then send private message directly
     if (!is_channel) {
         sds reply = sdscatfmt(sdsempty(), ":%s!%s@%s PRIVMSG %s :%s\r\n",
-                user_info->nick, user_info->username, user_info->client_host_name,
-                target_name, msg->params[msg->nparams - 1]);
+                              user_info->nick, user_info->username, user_info->client_host_name,
+                              target_name, msg->params[msg->nparams - 1]);
         chilog(INFO, "%s sends an message to %s", user_info->nick, target_user->nick);
         return send_reply(reply, target_user, true);
     }
@@ -240,14 +239,14 @@ int handler_PRIVMSG(context_handle ctx, user_handle user_info, message_handle ms
     //firstly, check whether the sender is in this channel
     if(!already_on_channel(target_channel, user_info->nick)) {
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :Cannot send to channel\r\n",
-                ctx->server_host, ERR_CANNOTSENDTOCHAN, user_info->nick, target_name);
+                              ctx->server_host, ERR_CANNOTSENDTOCHAN, user_info->nick, target_name);
         return send_reply(reply, user_info, true);
     }
 
     // send message to all channel members
     sds reply = sdscatfmt(sdsempty(), ":%s!%s@%s PRIVMSG %s :%s\r\n",
-            user_info->nick, user_info->username, user_info->client_host_name,
-            target_name, msg->params[msg->nparams - 1]);
+                          user_info->nick, user_info->username, user_info->client_host_name,
+                          target_name, msg->params[msg->nparams - 1]);
     // notify all
     notify_all_channel_members(ctx, target_channel, reply, user_info->nick);
     sdsfree(reply);
@@ -303,8 +302,8 @@ int handler_NOTICE(context_handle ctx, user_handle user_info, message_handle msg
 
     // send message to all channel members
     sds reply = sdscatfmt(sdsempty(), ":%s!%s@%s NOTICE %s :%s\r\n",
-            user_info->nick, user_info->username, user_info->client_host_name,
-            target_name, msg->params[msg->nparams - 1]);
+                          user_info->nick, user_info->username, user_info->client_host_name,
+                          target_name, msg->params[msg->nparams - 1]);
     // notify all
     notify_all_channel_members(ctx, target_channel, reply, user_info->nick);
     sdsfree(reply);
@@ -356,29 +355,29 @@ int handler_WHOIS(context_handle ctx, user_handle user_info, message_handle msg)
     if (!target_user) {
         // ERR_NOSUCHNICK
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :No such nick/channel\r\n",
-                ctx->server_host, ERR_NOSUCHNICK, user_info->nick, target_nick);
+                              ctx->server_host, ERR_NOSUCHNICK, user_info->nick, target_nick);
         return send_reply(reply, user_info, true);
     }
 
     sds r_whoisuser = sdscatfmt(sdsempty(), ":%s %s %s %s %s %s * :%s\r\n",
-            ctx->server_host, RPL_WHOISUSER, user_info->nick,
-            target_user->nick, target_user->username,
-            target_user->client_host_name, target_user->fullname);
+                                ctx->server_host, RPL_WHOISUSER, user_info->nick,
+                                target_user->nick, target_user->username,
+                                target_user->client_host_name, target_user->fullname);
 
     if (send_reply(r_whoisuser, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
     sds r_whoisserver = sdscatfmt(sdsempty(), ":%s %s %s %s %s :chirc-1.0\r\n",
-            ctx->server_host, RPL_WHOISSERVER, user_info->nick,
-            user_info->nick, ctx->server_host);
+                                  ctx->server_host, RPL_WHOISSERVER, user_info->nick,
+                                  user_info->nick, ctx->server_host);
 
     if (send_reply(r_whoisserver, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
     sds r_end = sdscatfmt(sdsempty(), ":%s %s %s %s :End of WHOIS list\r\n",
-            ctx->server_host, RPL_ENDOFWHOIS, user_info->nick, user_info->nick);
+                          ctx->server_host, RPL_ENDOFWHOIS, user_info->nick, user_info->nick);
     return send_reply(r_end, user_info, true);
 }
 
@@ -392,7 +391,7 @@ int handler_UNKNOWNCOMMAND(context_handle ctx, user_handle user_info, message_ha
     }
 
     sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :Unknown command\r\n",
-            ctx->server_host, ERR_UNKNOWNCOMMAND, user_info->nick, msg->cmd);
+                          ctx->server_host, ERR_UNKNOWNCOMMAND, user_info->nick, msg->cmd);
     return send_reply(reply, user_info, true);
 }
 
@@ -414,7 +413,7 @@ int handler_QUIT(context_handle ctx, user_handle user_info, message_handle msg)
     affected_channel = get_channels_user_on(ctx, user_info->nick, &affected_channel_count);
     if (affected_channel_count > 0) {
         sds r_channel = sdscatfmt(sdsempty(), ":%s!%s@%s QUIT :%s\r\n",
-            user_info->nick, user_info->username, user_info->client_host_name, quit_msg);
+                                  user_info->nick, user_info->username, user_info->client_host_name, quit_msg);
         for (int i = 0; i < affected_channel_count; i++) {
             if (affected_channel[i] == NULL) {
                 chilog(WARNING, "handler_QUIT: null channel");
@@ -424,9 +423,9 @@ int handler_QUIT(context_handle ctx, user_handle user_info, message_handle msg)
         }
         sdsfree(r_channel);
     }
-    
+
     sds reply = sdscatfmt(sdsempty(), "ERROR :Closing Link: %s (%s)\r\n",
-            user_info->client_host_name, quit_msg);
+                          user_info->client_host_name, quit_msg);
     send_reply(reply, user_info, true);
     return FAILURE;
 }
@@ -445,35 +444,35 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
 
     // TODO: change the parameters for op and channel
     sds r_luser_client = sdscatfmt(sdsempty(), ":%s %s %s :There are %i users and %i services on %i servers\r\n",
-            ctx->server_host, RPL_LUSERCLIENT, user_info->nick, count[2], 0, 1);
+                                   ctx->server_host, RPL_LUSERCLIENT, user_info->nick, count[2], 0, 1);
 
     if (send_reply(r_luser_client, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
     sds r_luser_op = sdscatfmt(sdsempty(), ":%s %s %s %i :operator(s) online\r\n",
-            ctx->server_host, RPL_LUSEROP, user_info->nick, ctx->irc_op_num);
+                               ctx->server_host, RPL_LUSEROP, user_info->nick, ctx->irc_op_num);
 
     if (send_reply(r_luser_op, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
     sds r_luser_unknown = sdscatfmt(sdsempty(), ":%s %s %s %i :unknown connection(s)\r\n",
-            ctx->server_host, RPL_LUSERUNKNOWN, user_info->nick, count[0]);
+                                    ctx->server_host, RPL_LUSERUNKNOWN, user_info->nick, count[0]);
 
     if (send_reply(r_luser_unknown, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
     sds r_luser_channels = sdscatfmt(sdsempty(), ":%s %s %s %i :channels formed\r\n",
-            ctx->server_host, RPL_LUSERCHANNELS, user_info->nick, get_channel_count(ctx));
+                                     ctx->server_host, RPL_LUSERCHANNELS, user_info->nick, get_channel_count(ctx));
 
     if (send_reply(r_luser_channels, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
     sds r_luser_me = sdscatfmt(sdsempty(), ":%s %s %s :I have %i clients and %i servers\r\n",
-            ctx->server_host, RPL_LUSERME, user_info->nick, count[1], 1);
+                               ctx->server_host, RPL_LUSERME, user_info->nick, count[1], 1);
 
     if (send_reply(r_luser_me, user_info, true) == FAILURE) {
         return FAILURE;
@@ -481,8 +480,8 @@ int handler_LUSERS(context_handle ctx, user_handle user_info, message_handle msg
 
     free(count);
 
-    sds r_nomotd = sdscatfmt(sdsempty(), ":%s %s %s :MOTD File is missing\r\n", 
-        ctx->server_host, ERR_NOMOTD, user_info->nick);
+    sds r_nomotd = sdscatfmt(sdsempty(), ":%s %s %s :MOTD File is missing\r\n",
+                             ctx->server_host, ERR_NOMOTD, user_info->nick);
 
     return send_reply(r_nomotd, user_info, true);
 }
@@ -495,7 +494,7 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
     if (ret != REGISTERED) {
         return ret;
     }
-    
+
     ret = check_insufficient_param(msg->nparams, 1, "JOIN", user_info, ctx);
     if (ret != SUFFICIENT) {
         return ret;
@@ -514,7 +513,7 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
         chilog(DEBUG, "user %s joined channel %s", user_info->nick, name);
         // notify all users :nick!user@10.150.42.58 JOIN #test
         sds r_join = sdscatfmt(sdsempty(), ":%s!%s@%s JOIN %s\r\n",
-                user_info->nick, user_info->username, user_info->client_host_name, name);
+                               user_info->nick, user_info->username, user_info->client_host_name, name);
         notify_all_channel_members(ctx, channel, r_join, NULL);
         sdsfree(r_join);
         break;
@@ -528,7 +527,7 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
 
     sds all_nicks = member_nicks_str(channel);
     sds r_name = sdscatfmt(sdsempty(), ":%s %s %s = %s :@%s\r\n",
-            ctx->server_host, RPL_NAMREPLY, user_info->nick, name, all_nicks);
+                           ctx->server_host, RPL_NAMREPLY, user_info->nick, name, all_nicks);
     if (send_reply(r_name, user_info, true) == FAILURE) {
         sdsfree(all_nicks);
         return FAILURE;
@@ -536,7 +535,7 @@ int handler_JOIN(context_handle ctx, user_handle user_info, message_handle msg)
     sdsfree(all_nicks);
 
     sds r_end = sdscatfmt(sdsempty(), ":%s %s %s %s :End of NAMES list\r\n",
-            ctx->server_host, RPL_ENDOFNAMES, user_info->nick, name);
+                          ctx->server_host, RPL_ENDOFNAMES, user_info->nick, name);
     return send_reply(r_end, user_info, true);
 }
 
@@ -546,7 +545,7 @@ int handler_PART(context_handle ctx, user_handle user_info, message_handle msg)
     if (ret != REGISTERED) {
         return ret;
     }
-    
+
     ret = check_insufficient_param(msg->nparams, 1, "PART", user_info, ctx);
     if (ret != SUFFICIENT) {
         return ret;
@@ -561,7 +560,7 @@ int handler_PART(context_handle ctx, user_handle user_info, message_handle msg)
         // ERR_NOSUCHCHANNEL
         pthread_mutex_unlock(&ctx->mutex_channel_table);
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :No such channel\r\n",
-                ctx->server_host, ERR_NOSUCHCHANNEL, user_info->nick, channel_name);
+                              ctx->server_host, ERR_NOSUCHCHANNEL, user_info->nick, channel_name);
         return send_reply(reply, user_info, true);
     }
 
@@ -576,11 +575,11 @@ int handler_PART(context_handle ctx, user_handle user_info, message_handle msg)
     case 2:
         if (msg->longlast)
             reply = sdscatfmt(sdsempty(), ":%s!%s@%s PART %s :%s\r\n",
-                    user_info->nick, user_info->username, user_info->client_host_name, channel_name, msg->params[1]);
+                              user_info->nick, user_info->username, user_info->client_host_name, channel_name, msg->params[1]);
         else
             reply = sdscatfmt(sdsempty(), ":%s!%s@%s PART %s\r\n",
-                    user_info->nick, user_info->username, user_info->client_host_name, channel_name);
-        
+                              user_info->nick, user_info->username, user_info->client_host_name, channel_name);
+
         // notify myself
         if (send_reply(reply, user_info, false) == FAILURE) {
             sdsfree(reply);
@@ -614,13 +613,13 @@ int handler_LIST(context_handle ctx, user_handle user_info, message_handle msg)
     if (ret != REGISTERED) {
         return ret;
     }
-    
+
     if (msg->nparams == 1) {
         char *name = msg->params[0];
         channel_handle channel = get_channel(ctx, name);
         if (channel) {
             sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s %u :\r\n",
-                    ctx->server_host, RPL_LIST, user_info->nick, channel->name, channel_member_count(channel));
+                                  ctx->server_host, RPL_LIST, user_info->nick, channel->name, channel_member_count(channel));
             if (send_reply(reply, user_info, true) == FAILURE)
                 return FAILURE;
         }
@@ -628,7 +627,7 @@ int handler_LIST(context_handle ctx, user_handle user_info, message_handle msg)
         pthread_mutex_lock(&ctx->mutex_channel_table);
         for (channel_handle cha = ctx->channel_hash_table; cha != NULL; cha = cha->hh.next) {
             sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s %u :\r\n",
-                    ctx->server_host, RPL_LIST, user_info->nick, cha->name, channel_member_count(cha));
+                                  ctx->server_host, RPL_LIST, user_info->nick, cha->name, channel_member_count(cha));
             if (send_reply(reply, user_info, true) == FAILURE) {
                 pthread_mutex_unlock(&ctx->mutex_channel_table);
                 return FAILURE;
@@ -638,7 +637,7 @@ int handler_LIST(context_handle ctx, user_handle user_info, message_handle msg)
     }
 
     sds r_end = sdscatfmt(sdsempty(), ":%s %s %s :End of LIST\r\n",
-            ctx->server_host, RPL_LISTEND, user_info->nick);
+                          ctx->server_host, RPL_LISTEND, user_info->nick);
     return send_reply(r_end, user_info, true);
 }
 
@@ -648,7 +647,7 @@ int handler_OPER(context_handle ctx, user_handle user_info, message_handle msg)
     if (ret != REGISTERED) {
         return ret;
     }
-    
+
     ret = check_insufficient_param(msg->nparams, 2, "OPER", user_info, ctx);
     if (ret != SUFFICIENT) {
         return ret;
@@ -656,16 +655,16 @@ int handler_OPER(context_handle ctx, user_handle user_info, message_handle msg)
 
     char *given_pw = msg->params[1];
     if (strcmp(ctx->password, given_pw) != 0) {
-        sds reply = sdscatfmt(sdsempty(), ":%s %s %s :Password incorrect\r\n", 
-            ctx->server_host, ERR_PASSWDMISMATCH, user_info->nick);
+        sds reply = sdscatfmt(sdsempty(), ":%s %s %s :Password incorrect\r\n",
+                              ctx->server_host, ERR_PASSWDMISMATCH, user_info->nick);
         return send_reply(reply, user_info, true);
     }
 
     user_info->is_irc_operator = true;
     increase_op_num(ctx);
-    
-    sds reply = sdscatfmt(sdsempty(), ":%s %s %s :You are now an IRC operator\r\n", 
-        ctx->server_host, RPL_YOUREOPER, user_info->nick);
+
+    sds reply = sdscatfmt(sdsempty(), ":%s %s %s :You are now an IRC operator\r\n",
+                          ctx->server_host, RPL_YOUREOPER, user_info->nick);
     return send_reply(reply, user_info, true);
 }
 
@@ -680,27 +679,27 @@ int handler_MODE(context_handle ctx, user_handle user_info, message_handle msg)
     if (ret != SUFFICIENT) {
         return ret;
     }
-    
+
     char *channel_name = msg->params[0];
     channel_handle channel = get_channel(ctx, channel_name);
 
     if (!channel) {
-        sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :No such channel\r\n", 
-            ctx->server_host, ERR_NOSUCHCHANNEL, user_info->nick, channel_name);
+        sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :No such channel\r\n",
+                              ctx->server_host, ERR_NOSUCHCHANNEL, user_info->nick, channel_name);
         return send_reply(reply, user_info, true);
     }
 
     char *mode_name = msg->params[1];
     if (strcmp(mode_name, "-o") != 0 && strcmp(mode_name, "+o") != 0) {
-        sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :is unknown mode char to me for %s\r\n", 
-            ctx->server_host, ERR_UNKNOWNMODE, user_info->nick, mode_name, channel_name);
+        sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :is unknown mode char to me for %s\r\n",
+                              ctx->server_host, ERR_UNKNOWNMODE, user_info->nick, mode_name, channel_name);
         return send_reply(reply, user_info, true);
     }
 
     char *target_nick = msg->params[2];
     if (!already_on_channel(channel, target_nick)) {
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s %s :They aren't on that channel\r\n",
-            ctx->server_host, ERR_USERNOTINCHANNEL, user_info->nick, target_nick, channel_name);
+                              ctx->server_host, ERR_USERNOTINCHANNEL, user_info->nick, target_nick, channel_name);
         return send_reply(reply, user_info, true);
     }
 
@@ -708,15 +707,15 @@ int handler_MODE(context_handle ctx, user_handle user_info, message_handle msg)
         if(update_member_mode(channel, target_nick, mode_name) == -1) {
             return FAILURE;
         }
-        sds reply = sdscatfmt(sdsempty(), ":%s!%s@%s MODE %s %s %s\r\n", 
-            user_info->nick, user_info->username, user_info->client_host_name,channel_name, mode_name, target_nick);
+        sds reply = sdscatfmt(sdsempty(), ":%s!%s@%s MODE %s %s %s\r\n",
+                              user_info->nick, user_info->username, user_info->client_host_name,channel_name, mode_name, target_nick);
         // notify all
         notify_all_channel_members(ctx, channel, reply, NULL);
         sdsfree(reply);
         return SUCCESS;
     } else {
-        sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :You're not channel operator\r\n", 
-            ctx->server_host, ERR_CHANOPRIVSNEEDED, user_info->nick, channel_name);
+        sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :You're not channel operator\r\n",
+                              ctx->server_host, ERR_CHANOPRIVSNEEDED, user_info->nick, channel_name);
         return send_reply(reply, user_info, true);
     }
 }
@@ -725,7 +724,7 @@ static int check_insufficient_param(int have, int target, char *cmd, user_handle
 {
     if (have < target) {
         sds reply = sdscatfmt(sdsempty(), ":%s %s %s %s :Not enough parameters\r\n",
-                ctx->server_host, ERR_NEEDMOREPARAMS, user_info->nick, cmd);
+                              ctx->server_host, ERR_NEEDMOREPARAMS, user_info->nick, cmd);
         if (send_reply(reply, user_info, true) == FAILURE) {
             return FAILURE;
         }
@@ -738,38 +737,38 @@ static int check_registered(context_handle ctx, user_handle user_info)
 {
     if (!user_info->registered) {
         char *temp_nick = user_info->nick ? user_info->nick : "*";
-        sds reply = sdscatfmt(sdsempty(), ":%s %s %s :You have not registered\r\n", 
-            ctx->server_host, ERR_NOTREGISTERED, temp_nick);
+        sds reply = sdscatfmt(sdsempty(), ":%s %s %s :You have not registered\r\n",
+                              ctx->server_host, ERR_NOTREGISTERED, temp_nick);
         if (send_reply(reply, user_info, true) == FAILURE)
             return FAILURE;
         return NOTREGISTERED;
-    } 
+    }
     return REGISTERED;
 }
 
 static int send_welcome(user_handle user_info, char *server_host_name)
 {
     sds r_welcome = sdscatfmt(sdsempty(), ":%s %s %s :Welcome to the Internet Relay Network %s!%s@%s\r\n",
-            server_host_name, RPL_WELCOME, user_info->nick,
-            user_info->nick, user_info->username, user_info->client_host_name);
+                              server_host_name, RPL_WELCOME, user_info->nick,
+                              user_info->nick, user_info->username, user_info->client_host_name);
     if (send_reply(r_welcome, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
     sds r_yourhost = sdscatfmt(sdsempty(), ":%s %s %s :Your host is %s, running version 1.0\r\n",
-            server_host_name, RPL_YOURHOST, user_info->nick, user_info->client_host_name);
+                               server_host_name, RPL_YOURHOST, user_info->nick, user_info->client_host_name);
     if (send_reply(r_yourhost, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
     sds r_created = sdscatfmt(sdsempty(), ":%s %s %s :This server was created TBD\r\n",
-            server_host_name, RPL_CREATED, user_info->nick);
+                              server_host_name, RPL_CREATED, user_info->nick);
     if (send_reply(r_created, user_info, true) == FAILURE) {
         return FAILURE;
     }
 
     sds r_myinfo = sdscatfmt(sdsempty(), ":%s %s %s %s 1.0 ao mtov\r\n",
-            server_host_name, RPL_MYINFO, user_info->nick, server_host_name);
+                             server_host_name, RPL_MYINFO, user_info->nick, server_host_name);
     if (send_reply(r_myinfo, user_info, true) == FAILURE) {
         return FAILURE;
     }
